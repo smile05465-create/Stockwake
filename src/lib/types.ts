@@ -55,7 +55,12 @@ export interface Bar {
   v: number;
 }
 
-export type ChartRange = "1M" | "3M" | "6M" | "1Y" | "5Y";
+/**
+ * Chart display ranges. `6M` stays in the type for API compatibility even
+ * though the page shows 1D/1W/1M/3M/1Y/5Y. 1D and 1W are derived client-side
+ * from daily bars (the providers only serve daily OHLCV).
+ */
+export type ChartRange = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "5Y";
 
 /** A row in the movers table. */
 export interface Mover {

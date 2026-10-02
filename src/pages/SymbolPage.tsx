@@ -8,6 +8,7 @@ import {
   fetchQuote,
   fetchSymbolNews,
   keyStatsFrom,
+  sessionBars,
 } from "../lib/api";
 import type { CnbcQuote } from "../lib/api";
 import type { Bar, ChartRange, KeyStats, NewsItem, Quote } from "../lib/types";
@@ -23,7 +24,7 @@ import {
   formatVolume,
 } from "../lib/format";
 
-const RANGES: ChartRange[] = ["1M", "3M", "6M", "1Y", "5Y"];
+const RANGES: ChartRange[] = ["1D", "1W", "1M", "3M", "1Y", "5Y"];
 
 interface QuoteBundle {
   quote: Quote;
@@ -48,7 +49,7 @@ export default function SymbolPage() {
   const params = useParams();
   // Normalize the route param so hand-typed URLs (/symbol/aapl) resolve too.
   const symbol = (params.symbol ?? "").trim().toUpperCase();
-  const [range, setRange] = useState<ChartRange>("6M");
+  const [range, setRange] = useState<ChartRange>("1M");
   const { symbols, toggle } = useWatchlist();
   const watched = symbols.includes(symbol);
 
@@ -82,7 +83,10 @@ export default function SymbolPage() {
   const bundle = quoteState.data;
   const quote = bundle?.quote ?? null;
   const stats = bundle?.stats ?? null;
-  const bars = historyState.data ?? [];
+  const rawBars = historyState.data ?? [];
+  // 1D is the last trading session (live quote merged in); other ranges are
+  // the trimmed daily series straight from the provider.
+  const bars = range === "1D" ? sessionBars(rawBars, quote) : rawBars;
 
   const first = bars[0]?.c ?? quote?.price ?? 0;
   const last = bars[bars.length - 1]?.c ?? quote?.price ?? 0;
@@ -130,25 +134,27 @@ export default function SymbolPage() {
                       : "Market closed"}
               </span>
             )}
-            <button
-              type="button"
-              onClick={() => toggle(symbol)}
-              aria-pressed={watched}
-              className={`text-xs rounded-lg px-3 py-1.5 sm:px-2.5 lg:py-1 border transition-colors ${
-                watched
-                  ? "border-flare-500/60 text-flare-300 bg-flare-500/10"
-                  : "border-ink-600 text-slate-400 hover:text-slate-200 hover:border-ink-600"
-              }`}
-            >
-              {watched ? "★ Watching" : "☆ Watch"}
-            </button>
           </div>
           <p className="mt-1 text-slate-400">
             {quote?.name ?? (quoteState.loading ? "Loading…" : "Unknown symbol")}
-            {quote?.exchange && (
-              <span className="text-slate-600"> · {quote.exchange}</span>
-            )}
           </p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            <span>
+              Volume{" "}
+              <span className="num text-slate-300">
+                {quote ? formatVolume(quote.volume) : "—"}
+              </span>
+            </span>
+            <span>
+              Market cap{" "}
+              <span className="num text-slate-300">
+                {quote?.marketCap != null ? formatCompact(quote.marketCap) : "—"}
+              </span>
+            </span>
+            <span>
+              Exchange <span className="text-slate-300">{quote?.exchange || "—"}</span>
+            </span>
+          </div>
         </div>
 
         <div className="text-left sm:text-right">
@@ -183,6 +189,25 @@ export default function SymbolPage() {
               {formatPercent(quote.extended.changePct)})
             </p>
           )}
+          <div className="mt-3 flex sm:justify-end">
+            <button
+              type="button"
+              onClick={() => toggle(symbol)}
+              aria-pressed={watched}
+              aria-label={
+                watched
+                  ? `Remove ${symbol} from watchlist`
+                  : `Add ${symbol} to watchlist`
+              }
+              className={`text-sm font-semibold rounded-lg px-4 py-2 border transition-colors ${
+                watched
+                  ? "border-flare-500/60 text-flare-300 bg-flare-500/10 hover:bg-flare-500/20"
+                  : "border-flare-500 bg-flare-500 text-ink-950 hover:bg-flare-400 hover:border-flare-400"
+              }`}
+            >
+              {watched ? "★ Remove from Watchlist" : "☆ Add to Watchlist"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -198,6 +223,11 @@ export default function SymbolPage() {
                   <span className={rangeChangePct >= 0 ? "text-up" : "text-down"}>
                     {formatPercent(rangeChangePct)}
                   </span>
+                </p>
+              )}
+              {range === "1D" && bars.length > 0 && (
+                <p className="text-[11px] text-slate-600 mt-0.5">
+                  Last session vs previous close · daily data
                 </p>
               )}
             </div>

@@ -245,8 +245,64 @@ export function trimToMonths(bars: Bar[], months: number): Bar[] {
   return trimmed.length >= 5 ? trimmed : bars.slice(-22);
 }
 
+/** Trim daily bars to roughly the trailing `days` calendar days (~1 trading week). */
+export function trimToDays(bars: Bar[], days: number): Bar[] {
+  if (bars.length === 0) return bars;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
+  const trimmed = bars.filter((b) => b.t >= cutoffIso);
+  return trimmed.length >= 2 ? trimmed : bars.slice(-5);
+}
+
+/**
+ * 1D view: the previous session plus the current one.
+ *
+ * The providers only serve daily bars, so 1D is honestly built from real
+ * data: the last two sessions, with the live quote merged into today's bar
+ * (open/high/low/close/volume from the quote) when its date is newer than —
+ * or the same as — the last daily bar. No synthetic intraday points.
+ */
+export function sessionBars(bars: Bar[], quote: Quote | null): Bar[] {
+  if (bars.length === 0) return bars;
+  const last = bars[bars.length - 1];
+  if (!quote || !quote.date || quote.price <= 0) return bars.slice(-2);
+
+  if (quote.date > last.t) {
+    // Quote is a newer session than the last daily bar — append today.
+    const live: Bar = {
+      t: quote.date,
+      o: quote.open ?? quote.price,
+      h: Math.max(quote.price, quote.high ?? -Infinity, quote.open ?? -Infinity),
+      l: Math.min(quote.price, quote.low ?? Infinity, quote.open ?? Infinity),
+      c: quote.price,
+      v: quote.volume,
+    };
+    return [...bars, live].slice(-2);
+  }
+  if (quote.date === last.t) {
+    // Same session — refresh the bar with the live quote without ever
+    // shrinking the daily high/low when the quote omits them.
+    const live: Bar = {
+      ...last,
+      o: quote.open ?? last.o,
+      h: Math.max(last.h, quote.price, quote.high ?? -Infinity),
+      l: Math.min(last.l, quote.price, quote.low ?? Infinity),
+      c: quote.price,
+      v: quote.volume || last.v,
+    };
+    return [...bars.slice(0, -1), live];
+  }
+  // Quote is older than the last bar (stale) — keep history as-is.
+  return bars.slice(-2);
+}
+
 const SA_RANGE_PARAM: Record<ChartRange, string> = {
-  "1M": "3M", // SA ignores "1M"; fetch 3M and trim client-side.
+  // SA only honors ranges ≥ 3M and serves daily bars only; fetch 3M once and
+  // trim client-side (1D/1W/1M therefore share one cached payload).
+  "1D": "3M",
+  "1W": "3M",
+  "1M": "3M",
   "3M": "3M",
   "6M": "6M",
   "1Y": "1Y",
@@ -261,6 +317,8 @@ export async function fetchHistory(symbol: string, range: ChartRange): Promise<B
     const json = (await fetchJson(url)) as { data?: SaBar[] };
     return parseHistory(json);
   });
+  if (range === "1D") return bars.slice(-2);
+  if (range === "1W") return trimToDays(bars, 7);
   if (range === "1M") return trimToMonths(bars, 1);
   return bars;
 }

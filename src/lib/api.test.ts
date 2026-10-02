@@ -8,9 +8,11 @@ import {
   parseNum,
   parseSaQuote,
   parseSearch,
+  sessionBars,
+  trimToDays,
   trimToMonths,
 } from "./api";
-import type { Bar } from "./types";
+import type { Bar, Quote } from "./types";
 
 describe("parseSearch", () => {
   it("maps stockanalysis search rows", () => {
@@ -186,6 +188,137 @@ describe("trimToMonths", () => {
 
   it("handles empty input", () => {
     expect(trimToMonths([], 1)).toEqual([]);
+  });
+});
+
+describe("trimToDays", () => {
+  const isoDaysAgo = (days: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d.toISOString().slice(0, 10);
+  };
+  const mk = (t: string): Bar => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 });
+
+  it("keeps the trailing calendar week of bars", () => {
+    const bars = Array.from({ length: 60 }, (_, i) => mk(isoDaysAgo(59 - i)));
+    const trimmed = trimToDays(bars, 7);
+    expect(trimmed.length).toBeGreaterThanOrEqual(5);
+    expect(trimmed.length).toBeLessThanOrEqual(9);
+    expect(trimmed[trimmed.length - 1].t).toBe(isoDaysAgo(0));
+  });
+
+  it("falls back to the last trading week when the trim is too aggressive", () => {
+    const bars = Array.from({ length: 10 }, (_, i) =>
+      mk(`2020-01-${String(i + 1).padStart(2, "0")}`),
+    );
+    expect(trimToDays(bars, 7)).toHaveLength(5);
+  });
+
+  it("handles empty input", () => {
+    expect(trimToDays([], 7)).toEqual([]);
+  });
+});
+
+describe("sessionBars", () => {
+  const bar = (t: string, c: number, extra: Partial<Bar> = {}): Bar => ({
+    t,
+    o: c,
+    h: c,
+    l: c,
+    c,
+    v: 100,
+    ...extra,
+  });
+  const quote = (over: Partial<Quote> = {}): Quote => ({
+    symbol: "AAPL",
+    name: "Apple Inc.",
+    kind: "stock",
+    price: 330,
+    change: 0,
+    changePct: 0,
+    previousClose: 330,
+    open: null,
+    high: null,
+    low: null,
+    volume: 1_000,
+    date: "2026-10-02",
+    currency: "USD",
+    exchange: "NASDAQ",
+    marketCap: null,
+    high52w: null,
+    low52w: null,
+    extended: null,
+    session: "open",
+    ...over,
+  });
+
+  it("keeps the last two sessions when there is no usable quote", () => {
+    const bars = [
+      bar("2026-09-30", 320),
+      bar("2026-10-01", 325),
+      bar("2026-10-02", 330),
+    ];
+    expect(sessionBars(bars, null).map((b) => b.t)).toEqual([
+      "2026-10-01",
+      "2026-10-02",
+    ]);
+    // A quote without a date (CNBC-only fallback) must not be invented.
+    expect(sessionBars(bars, quote({ date: "" })).map((b) => b.t)).toEqual([
+      "2026-10-01",
+      "2026-10-02",
+    ]);
+  });
+
+  it("appends a live session newer than the last daily bar", () => {
+    const bars = [
+      bar("2026-10-01", 325, { h: 328, l: 322 }),
+      bar("2026-10-02", 330, { h: 333, l: 328 }),
+    ];
+    const out = sessionBars(
+      bars,
+      quote({ date: "2026-10-05", price: 340, open: 331, high: 342, low: 329, volume: 5_000 }),
+    );
+    expect(out).toHaveLength(2);
+    expect(out[0].t).toBe("2026-10-02");
+    expect(out[1]).toMatchObject({
+      t: "2026-10-05",
+      o: 331,
+      h: 342,
+      l: 329,
+      c: 340,
+      v: 5_000,
+    });
+  });
+
+  it("refreshes the same-day bar with live values without shrinking its range", () => {
+    const bars = [
+      bar("2026-10-01", 325),
+      bar("2026-10-02", 330, { o: 328, h: 335, l: 326, v: 900 }),
+    ];
+    const out = sessionBars(
+      bars,
+      quote({ date: "2026-10-02", price: 332, open: null, high: null, low: null }),
+    );
+    expect(out).toHaveLength(2);
+    const live = out[1];
+    expect(live.t).toBe("2026-10-02");
+    expect(live.c).toBe(332); // live price wins
+    expect(live.o).toBe(328); // quote has no open → keep the daily bar's
+    expect(live.h).toBe(335); // never below the real daily high
+    expect(live.l).toBe(326); // never above the real daily low
+    expect(live.v).toBe(1_000); // quote volume wins when present
+  });
+
+  it("ignores a quote older than the last bar", () => {
+    const bars = [bar("2026-10-01", 325), bar("2026-10-02", 330)];
+    const out = sessionBars(bars, quote({ date: "2026-09-30", price: 300 }));
+    expect(out.map((b) => b.t)).toEqual(["2026-10-01", "2026-10-02"]);
+    expect(out[1].c).toBe(330);
+  });
+
+  it("handles empty input", () => {
+    expect(sessionBars([], null)).toEqual([]);
+    expect(sessionBars([], quote())).toEqual([]);
   });
 });
 

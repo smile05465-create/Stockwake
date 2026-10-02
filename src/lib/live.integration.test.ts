@@ -46,6 +46,23 @@ live("live market data providers", () => {
     expect(bars[0].c).toBeGreaterThan(0);
   }, 25_000);
 
+  it("history returns a one-week window of ascending bars", async () => {
+    const bars = await fetchHistory("AAPL", "1W");
+    expect(bars.length).toBeGreaterThanOrEqual(2);
+    expect(bars.length).toBeLessThanOrEqual(9);
+    for (let i = 1; i < bars.length; i++) {
+      expect(bars[i].t >= bars[i - 1].t).toBe(true);
+    }
+    expect(bars[bars.length - 1].c).toBeGreaterThan(0);
+  }, 25_000);
+
+  it("history returns a 1D session view of the last one or two sessions", async () => {
+    const bars = await fetchHistory("AAPL", "1D");
+    expect(bars.length).toBeGreaterThanOrEqual(1);
+    expect(bars.length).toBeLessThanOrEqual(2);
+    expect(bars[bars.length - 1].c).toBeGreaterThan(0);
+  }, 25_000);
+
   it("index batch quotes parse with names and prices", async () => {
     const quotes = await fetchCnbcQuotes([".SPX", ".DJI", "IXIC", ".VIX"]);
     expect(quotes.length).toBeGreaterThanOrEqual(3);

@@ -11,10 +11,13 @@ dark-themed UI that works on desktop and phone.
 - **Landing page** with a live index pulse (S&P 500, Dow, Nasdaq, VIX) and a clear path into the dashboard.
 - **Markets dashboard** (`#/markets`) — index strip, gainers / losers / most-active movers,
   watchlist snapshot and market headlines.
-- **Watchlist** (`#/watchlist`) — add symbols via search, summary strip, quote grid.
+- **Watchlist** (`#/watchlist`) — add symbols via search or the detail page's
+  **Add to Watchlist** button, summary strip, quote grid.
   Persisted in `localStorage` (up to 30 symbols), so it survives refreshes and browser restarts.
-- **Symbol detail** (`#/symbol/AAPL`) — live quote with session badge (pre/open/post/closed),
-  1M–5Y interactive SVG chart with hover crosshair and volume, key statistics and per-symbol news.
+- **Symbol detail** (`#/symbol/AAPL`) — symbol, company name, live price with daily change and
+  percent, session badge (pre/open/post/closed), volume / market cap / exchange meta,
+  1D–5Y interactive SVG chart (1D, 1W, 1M, 3M, 1Y, 5Y pills) with hover crosshair and volume,
+  key statistics, per-symbol news and a one-tap **Add to Watchlist** button.
 - **Global ticker search** — debounced, keyboard-navigable, jumps straight to detail pages.
 - Fully responsive: dedicated mobile nav row, touch-friendly controls, no hover-only affordances.
 

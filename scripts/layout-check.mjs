@@ -261,9 +261,9 @@ async function checkSymbolPage(page, width) {
     JSON.stringify(cb),
   );
 
-  const ranges = page.getByRole("button", { name: /^(1M|3M|6M|1Y|5Y)$/ });
+  const ranges = page.getByRole("button", { name: /^(1D|1W|1M|3M|1Y|5Y)$/ });
   const rangeCount = await ranges.count();
-  check(rangeCount === 5, `5 range pills rendered (got ${rangeCount})`);
+  check(rangeCount === 6, `6 range pills rendered (got ${rangeCount})`);
   const minH = width < 1024 ? 28 : 0; // touch tiers need a comfortable target;
   for (let i = 0; i < rangeCount; i++) {
     const b = await ranges.nth(i).boundingBox();

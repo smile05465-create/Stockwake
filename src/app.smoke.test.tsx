@@ -46,6 +46,17 @@ describe("App routes render", () => {
     expect(html).toContain("Key statistics");
     expect(html).toContain("Price history");
     expect(html).toContain("Previous close");
+    // Detail-page contract: watchlist CTA, volume/market-cap/exchange meta,
+    // and every chart range pill (1D/1W/1M/3M/1Y/5Y).
+    expect(html).toMatch(/Add to Watchlist|Remove from Watchlist/);
+    expect(html).toContain("Volume");
+    expect(html).toContain("Market cap");
+    expect(html).toContain("Exchange");
+    for (const label of ["1D", "1W", "1M", "3M", "1Y", "5Y"]) {
+      expect(html).toContain(`>${label}</button>`);
+    }
+    // A symbol outside the default watchlist shows the add state.
+    expect(renderAt("/symbol/AMD")).toContain("Add to Watchlist");
   });
 
   it("renders 404 for unknown routes", () => {

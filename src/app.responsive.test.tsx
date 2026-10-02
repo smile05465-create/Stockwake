@@ -117,10 +117,26 @@ describe("phones (360 / 390 / 430px — everything below sm=640)", () => {
     // below lg; desktop (lg+) keeps the original compact sizing.
     expect(symbol).toContain("flex w-fit rounded-lg bg-ink-850");
     expect(symbol).toContain("px-3 py-2 sm:px-2 sm:py-1.5 lg:py-1");
-    // Session badge / watch button row wraps instead of overflowing at 360px.
+    // Exactly six range pills render: 1D / 1W / 1M / 3M / 1Y / 5Y.
+    const pillCount = (
+      symbol.match(/px-3 py-2 sm:px-2 sm:py-1\.5 lg:py-1/g) ?? []
+    ).length;
+    expect(pillCount).toBe(6);
+    for (const label of ["1D", "1W", "1M", "3M", "1Y", "5Y"]) {
+      expect(symbol).toContain(`>${label}</button>`);
+    }
+    // Session badge row wraps instead of overflowing at 360px.
     expect(symbol).toContain("flex flex-wrap items-center gap-3");
-    // Watch button gets a larger tap target below lg only.
-    expect(symbol).toContain("px-3 py-1.5 sm:px-2.5 lg:py-1");
+    // Clear watchlist CTA with a comfortable touch target (add state for a
+    // symbol outside the default watchlist, remove state otherwise).
+    expect(symbol).toMatch(/Add to Watchlist|Remove from Watchlist/);
+    expect(renderAt("/symbol/AMD")).toContain("Add to Watchlist");
+    expect(symbol).toContain("px-4 py-2");
+    // Detail header meta row: volume, market cap and exchange are visible
+    // without scrolling into the statistics card.
+    expect(symbol).toContain("Volume");
+    expect(symbol).toContain("Market cap");
+    expect(symbol).toContain("Exchange");
   });
 
   it("keeps landing index cards two-up on phones", () => {
