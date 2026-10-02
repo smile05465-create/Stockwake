@@ -53,9 +53,9 @@ export default function QuoteCard({ quote, subtitle, remove }: Props) {
           type="button"
           onClick={remove}
           aria-label={`Remove ${quote.symbol} from watchlist`}
-          className="absolute top-2 right-9 opacity-60 sm:opacity-0 sm:group-hover:opacity-100
-                     focus:opacity-100 h-6 w-6 rounded-md text-slate-500 hover:text-down
-                     hover:bg-ink-800 transition-all text-xs"
+          className="absolute top-2 right-9 opacity-70 sm:opacity-0 sm:group-hover:opacity-100
+                     focus:opacity-100 h-8 w-8 sm:h-6 sm:w-6 rounded-md text-slate-500
+                     hover:text-down hover:bg-ink-800 transition-all text-xs"
         >
           ✕
         </button>

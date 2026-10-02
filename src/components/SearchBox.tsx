@@ -62,7 +62,7 @@ export default function SearchBox() {
   const showDropdown = open && debounced.trim().length > 0;
 
   return (
-    <div ref={boxRef} className="relative w-full max-w-xs sm:max-w-sm">
+    <div ref={boxRef} className="relative w-full min-w-0 max-w-xs sm:max-w-sm">
       <input
         value={query}
         onChange={(e) => {
@@ -74,12 +74,14 @@ export default function SearchBox() {
         onKeyDown={onKeyDown}
         placeholder="Search ticker or company…"
         aria-label="Search symbols"
-        className="w-full rounded-lg bg-ink-850 border border-ink-600 px-3 py-2 text-sm
+        className="w-full min-w-0 rounded-lg bg-ink-850 border border-ink-600 px-3 py-2 text-sm
                    text-slate-100 placeholder:text-slate-500 outline-none
                    focus:border-flare-500/70 focus:ring-2 focus:ring-flare-500/20 transition-colors"
       />
       {showDropdown && (
-        <div className="absolute right-0 left-0 mt-2 rounded-xl border border-ink-600 bg-ink-900 shadow-2xl shadow-black/50 overflow-hidden">
+        <div className="absolute right-0 left-auto mt-2 w-[min(86vw,20rem)] sm:left-0 sm:right-0 sm:w-auto
+                        max-h-[65vh] overflow-y-auto overscroll-contain
+                        rounded-xl border border-ink-600 bg-ink-900 shadow-2xl shadow-black/50">
           {loading && results.length === 0 && (
             <div className="px-3 py-3 text-sm text-slate-500">Searching…</div>
           )}

@@ -33,5 +33,8 @@ coverage/
 # Freebuff preview runtime state (logs, pid)
 .vly-run/
 
+# Freebuff deploy staging artifact (static build copy)
+isolate/
+
 # Exported source bundle (generated artifact)
 /stockwake-source.zip

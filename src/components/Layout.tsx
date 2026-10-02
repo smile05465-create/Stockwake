@@ -33,7 +33,7 @@ const navLinks = [
 
 export default function Layout() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-clip">
       <header className="sticky top-0 z-40 border-b border-ink-700/70 glass">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center gap-4">
           <Logo />

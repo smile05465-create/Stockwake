@@ -1,6 +1,6 @@
 /** Responsive SVG price chart: area line, volume bars, hover crosshair. */
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Bar } from "../lib/types";
 import { formatCompact, formatPrice } from "../lib/format";
@@ -25,10 +25,31 @@ export default function PriceChart({ bars, positive = true, height = 340 }: Prop
   const gradId = useId();
   const [hover, setHover] = useState<HoverInfo | null>(null);
 
+  // Phones render a smaller viewBox (400 units) so axis labels, ticks and the
+  // crosshair stay legible after the SVG scales down to ~300–430px containers.
+  // Desktop keeps the original 800-unit geometry untouched.
+  const [narrow, setNarrow] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 639px)").matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => {
+      setNarrow(mq.matches);
+    };
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const geom = useMemo(() => {
     if (bars.length < 2) return null;
-    const width = 800; // viewBox units; SVG scales to container
-    const innerW = width - PAD.left - PAD.right;
+    const width = narrow ? 400 : 800; // viewBox units; SVG scales to container
+    const padRight = narrow ? 88 : 52;
+    const labelFs = narrow ? 14 : 11;
+    const innerW = width - PAD.left - padRight;
     const innerH = height - PAD.top - PAD.bottom;
     const volH = innerH * VOLUME_SHARE;
     const priceH = innerH - volH - 8;
@@ -62,6 +83,9 @@ export default function PriceChart({ bars, positive = true, height = 340 }: Prop
     return {
       width,
       innerW,
+      padRight,
+      labelFs,
+      compact: narrow,
       priceBottom: PAD.top + priceH,
       min,
       max,
@@ -75,7 +99,7 @@ export default function PriceChart({ bars, positive = true, height = 340 }: Prop
       volTop,
       volH,
     };
-  }, [bars, height]);
+  }, [bars, height, narrow]);
 
   if (!geom) {
     return (
@@ -124,16 +148,16 @@ export default function PriceChart({ bars, positive = true, height = 340 }: Prop
           <g key={t.v}>
             <line
               x1={PAD.left}
-              x2={geom.width - PAD.right}
+              x2={geom.width - geom.padRight}
               y1={t.y}
               y2={t.y}
               stroke="var(--color-ink-700)"
               strokeDasharray="3 5"
             />
             <text
-              x={geom.width - PAD.right + 6}
+              x={geom.width - geom.padRight + 6}
               y={t.y + 4}
-              fontSize="11"
+              fontSize={geom.labelFs}
               fill="var(--color-ink-600)"
               className="num"
             >
@@ -165,7 +189,7 @@ export default function PriceChart({ bars, positive = true, height = 340 }: Prop
           points={geom.linePts}
           fill="none"
           stroke={stroke}
-          strokeWidth="2.2"
+          strokeWidth={geom.compact ? 3 : 2.2}
           strokeLinejoin="round"
         />
 
@@ -175,7 +199,7 @@ export default function PriceChart({ bars, positive = true, height = 340 }: Prop
             key={`x-${i}`}
             x={geom.x(i)}
             y={height - 8}
-            fontSize="11"
+            fontSize={geom.labelFs}
             fill="var(--color-ink-600)"
             textAnchor={i === 0 ? "start" : i === bars.length - 1 ? "end" : "middle"}
             className="num"
@@ -196,7 +220,7 @@ export default function PriceChart({ bars, positive = true, height = 340 }: Prop
               strokeDasharray="3 4"
               opacity="0.7"
             />
-            <circle cx={hover.x} cy={hover.y} r="4" fill={stroke} />
+            <circle cx={hover.x} cy={hover.y} r={geom.compact ? 5.5 : 4} fill={stroke} />
           </g>
         )}
       </svg>

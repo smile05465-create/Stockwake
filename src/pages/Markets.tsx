@@ -98,7 +98,7 @@ function WatchlistSnapshot() {
 
       {error && <p className="text-sm text-down py-4">Couldn’t load watchlist quotes.</p>}
       {loading && quotes.length === 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className="rounded-lg bg-ink-850 h-24 animate-pulse" />
           ))}
@@ -114,7 +114,7 @@ function WatchlistSnapshot() {
         </p>
       )}
       {quotes.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {quotes.map((q) => (
             <QuoteCard key={q.symbol} quote={q} remove={() => toggle(q.symbol)} />
           ))}
@@ -149,8 +149,9 @@ export default function Markets() {
 
       <IndexStrip />
 
-      <div className="grid lg:grid-cols-5 gap-6 items-start">
-        <div className="lg:col-span-3 space-y-6">
+      {/* Two-pane from `md` (tablet); stacked on phones. */}
+      <div className="grid md:grid-cols-5 gap-6 items-start">
+        <div className="md:col-span-3 space-y-6">
           <MoversTable
             tab={tab}
             onTabChange={setTab}
@@ -160,7 +161,7 @@ export default function Markets() {
           />
           <WatchlistSnapshot />
         </div>
-        <div className="lg:col-span-2">
+        <div className="md:col-span-2">
           <NewsList news={news.data} loading={news.loading} error={news.error} />
         </div>
       </div>

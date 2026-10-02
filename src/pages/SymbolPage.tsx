@@ -92,7 +92,7 @@ export default function SymbolPage() {
     return (
       <div className="mx-auto max-w-6xl px-4 py-16 text-center">
         <p className="text-lg text-down">Couldn’t load “{symbol}”.</p>
-        <p className="mt-2 text-sm text-slate-500">{quoteState.error.message}</p>
+        <p className="mt-2 text-sm text-slate-500 break-words">{quoteState.error.message}</p>
         <button
           type="button"
           onClick={quoteState.reload}
@@ -109,7 +109,7 @@ export default function SymbolPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="num text-3xl font-semibold text-slate-50">{symbol.toUpperCase()}</h1>
             {quote?.session && (
               <span
@@ -134,7 +134,7 @@ export default function SymbolPage() {
               type="button"
               onClick={() => toggle(symbol)}
               aria-pressed={watched}
-              className={`text-xs rounded-lg px-2.5 py-1 border transition-colors ${
+              className={`text-xs rounded-lg px-3 py-1.5 sm:px-2.5 lg:py-1 border transition-colors ${
                 watched
                   ? "border-flare-500/60 text-flare-300 bg-flare-500/10"
                   : "border-ink-600 text-slate-400 hover:text-slate-200 hover:border-ink-600"
@@ -189,7 +189,7 @@ export default function SymbolPage() {
       <div className="grid lg:grid-cols-5 gap-6 items-start">
         {/* Chart */}
         <div className="lg:col-span-3 card p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
             <div>
               <h2 className="text-sm font-medium text-slate-400">Price history</h2>
               {bars.length > 0 && (
@@ -201,14 +201,14 @@ export default function SymbolPage() {
                 </p>
               )}
             </div>
-            <div className="flex rounded-lg bg-ink-850 border border-ink-700 p-0.5">
+            <div className="flex w-fit rounded-lg bg-ink-850 border border-ink-700 p-0.5">
               {RANGES.map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setRange(r)}
                   aria-pressed={range === r}
-                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                  className={`px-3 py-2 sm:px-2 sm:py-1.5 lg:py-1 text-xs rounded-md transition-colors ${
                     range === r
                       ? "bg-flare-500 text-ink-950 font-semibold"
                       : "text-slate-400 hover:text-slate-200"
@@ -221,7 +221,7 @@ export default function SymbolPage() {
           </div>
 
           {historyState.error && (
-            <p className="text-sm text-down py-6 text-center">
+            <p className="text-sm text-down py-6 text-center break-words">
               Couldn’t load history — {historyState.error.message}{" "}
               <button type="button" className="underline" onClick={historyState.reload}>
                 Retry
