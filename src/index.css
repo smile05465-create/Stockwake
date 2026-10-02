@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Stockwake "first light" palette — dawn amber on deep ink */
+  --color-ink-950: #060a13;
+  --color-ink-900: #0a1020;
+  --color-ink-850: #0e1628;
+  --color-ink-800: #121c33;
+  --color-ink-700: #1c2a47;
+  --color-ink-600: #2b3d61;
+
+  --color-flare-300: #ffd28a;
+  --color-flare-400: #ffb454;
+  --color-flare-500: #ff9f1c;
+  --color-flare-600: #e8850c;
+
+  --color-up: #34d399;
+  --color-down: #fb7185;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-ink-950);
+    color: #dbe4f3;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Numbers everywhere should line up in columns. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: color-mix(in srgb, var(--color-ink-900) 82%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  .card {
+    background: linear-gradient(180deg, var(--color-ink-850), var(--color-ink-900));
+    border: 1px solid var(--color-ink-700);
+    border-radius: 0.9rem;
+  }
+
+  .card-hover {
+    transition:
+      border-color 0.18s ease,
+      transform 0.18s ease;
+  }
+  .card-hover:hover {
+    border-color: var(--color-ink-600);
+    transform: translateY(-2px);
+  }
+
+  .glow-dawn {
+    background:
+      radial-gradient(1200px 480px at 50% -10%, rgba(255, 159, 28, 0.16), transparent 65%),
+      radial-gradient(900px 420px at 85% 10%, rgba(52, 211, 153, 0.07), transparent 60%);
+  }
+
+  .ticker-up {
+    color: var(--color-up);
+  }
+  .ticker-down {
+    color: var(--color-down);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
