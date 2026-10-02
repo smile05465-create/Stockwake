@@ -12,17 +12,17 @@ const INDICES = [".SPX", ".DJI", "IXIC", ".VIX"];
 const FEATURES: Array<{ title: string; body: ReactNode; icon: string }> = [
   {
     title: "Wake up to the tape",
-    body: "Indices, futures-style pre/post reads and the VIX — the market pulse in one glance before you pour the coffee.",
+    body: "Indices, pre/post-market reads and the VIX — the market pulse in one glance before you pour the coffee.",
     icon: "◮",
   },
   {
     title: "Charts that answer questions",
-    body: "Interactive price history from 1 month to 5 years with hover readouts for OHLC and volume. No clutter, no paywall.",
+    body: "Interactive daily price history from 1 day to 5 years — 1D, 1W, 1M, 3M, 1Y, 5Y — with hover readouts for OHLC and volume.",
     icon: "◰",
   },
   {
     title: "Movers before they trend",
-    body: "Live gainers, losers and most-active lists screened across NASDAQ and NYSE so you see what’s actually moving.",
+    body: "Today’s gainers, losers and most-active lists screened across NASDAQ and NYSE so you see what’s actually moving.",
     icon: "⇗",
   },
   {
@@ -119,8 +119,8 @@ export default function Landing() {
             <span className="text-flare-400">So should your data.</span>
           </h1>
           <p className="mt-5 text-lg text-slate-400 max-w-xl leading-relaxed">
-            Stockwake brings live quotes, clean charts, movers and headlines together in one
-            focused terminal — free, fast and without an account.
+            Stockwake brings the latest quotes, clean charts, movers and headlines together in
+            one focused terminal — free, fast and without an account.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
@@ -145,7 +145,7 @@ export default function Landing() {
           <h2 className="text-sm font-medium tracking-wide uppercase text-slate-500">
             Index pulse
           </h2>
-          <span className="text-xs text-slate-600">live via public feeds</span>
+          <span className="text-xs text-slate-600">via public feeds</span>
         </div>
         <IndexPulse />
       </section>

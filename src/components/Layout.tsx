@@ -34,6 +34,22 @@ const navLinks = [
 export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col overflow-x-clip">
+      {/* Skip link: invisible until keyboard-focused. HashRouter owns the URL
+          hash, so the click is handled in JS instead of changing `href`. */}
+      <a
+        href="#main-content"
+        onClick={(e) => {
+          e.preventDefault();
+          const main = document.getElementById("main-content");
+          main?.scrollIntoView();
+          main?.focus();
+        }}
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50
+                   focus:rounded-lg focus:border focus:border-flare-500/60 focus:bg-ink-900
+                   focus:px-4 focus:py-2 focus:text-sm focus:text-slate-100"
+      >
+        Skip to content
+      </a>
       <header className="sticky top-0 z-40 border-b border-ink-700/70 glass">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center gap-4">
           <Logo />
@@ -58,14 +74,15 @@ export default function Layout() {
           <SearchBox />
         </div>
 
-        {/* Mobile nav row — phones get the same destinations as desktop. */}
+        {/* Mobile nav row — phones get the same destinations as desktop,
+            with a taller touch target than the desktop (mouse) nav. */}
         <nav className="sm:hidden border-t border-ink-700/70 px-4 py-1.5 flex items-center gap-1">
           {navLinks.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               className={({ isActive }) =>
-                `px-3 py-1.5 rounded-md text-sm transition-colors ${
+                `px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive
                     ? "text-flare-300 bg-ink-800"
                     : "text-slate-400 hover:text-slate-200 hover:bg-ink-850"
@@ -78,7 +95,7 @@ export default function Layout() {
         </nav>
       </header>
 
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         <Outlet />
       </main>
 
@@ -89,7 +106,8 @@ export default function Layout() {
             intelligence before the bell.
           </p>
           <p className="text-xs">
-            Data from public market feeds. For information only — not investment advice.
+            Data from public market feeds — quotes may be delayed. For information only — not
+            investment advice.
           </p>
         </div>
       </footer>

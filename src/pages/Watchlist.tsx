@@ -1,11 +1,12 @@
 /** Full watchlist page: grid of quote cards with add/remove. */
 
 import { useCallback, useState } from "react";
-import { fetchCnbcQuotes, fetchQuote, searchSymbols } from "../lib/api";
+import { fetchCnbcQuotes, fetchMarketNews, fetchQuote, searchSymbols } from "../lib/api";
 import type { CnbcQuote } from "../lib/api";
-import type { Quote } from "../lib/types";
+import type { NewsItem, Quote } from "../lib/types";
 import { useAsync } from "../hooks/useAsync";
 import { useWatchlist } from "../hooks/useWatchlist";
+import NewsList from "../components/NewsList";
 import QuoteCard from "../components/QuoteCard";
 import { formatPercent, formatPrice } from "../lib/format";
 
@@ -13,11 +14,13 @@ function AddSymbol({ onAdd }: { onAdd: (symbol: string) => void }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Array<{ symbol: string; name: string }> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const lookup = useCallback(async () => {
     const term = q.trim();
     if (!term) return;
     setBusy(true);
+    setFailed(false);
     try {
       const hits = await searchSymbols(term);
       setResults(hits.slice(0, 6));
@@ -29,7 +32,9 @@ function AddSymbol({ onAdd }: { onAdd: (symbol: string) => void }) {
         setResults(null);
       }
     } catch {
+      // A failed request is not "no matches" — say so honestly.
       setResults([]);
+      setFailed(true);
     } finally {
       setBusy(false);
     }
@@ -43,6 +48,7 @@ function AddSymbol({ onAdd }: { onAdd: (symbol: string) => void }) {
           onChange={(e) => {
             setQ(e.target.value);
             setResults(null);
+            setFailed(false);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -89,7 +95,7 @@ function AddSymbol({ onAdd }: { onAdd: (symbol: string) => void }) {
       )}
       {results && results.length === 0 && (
         <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-ink-600 bg-ink-900 px-3 py-2.5 text-sm text-slate-500">
-          No matches.
+          {failed ? "Search is unavailable right now — try again." : "No matches."}
         </div>
       )}
     </div>
@@ -117,8 +123,12 @@ export default function Watchlist() {
       return null;
     });
   }, [symbols]);
-  const { data, error, loading } = useAsync<(Quote | null)[]>(loader, [symbols.join(",")]);
+  const { data, error, loading, reload } = useAsync<(Quote | null)[]>(loader, [
+    symbols.join(","),
+  ]);
   const quotes = (data ?? []).filter((q): q is Quote => q !== null);
+  // Market headlines from the same keyless feed the dashboard uses.
+  const news = useAsync<NewsItem[]>(() => fetchMarketNews(), []);
 
   // Summary strip derived from loaded quotes.
   const gainers = quotes.filter((q) => q.changePct > 0).length;
@@ -172,7 +182,10 @@ export default function Watchlist() {
 
       {error && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-down">
-          Couldn’t load quotes. Check your connection and refresh.
+          Couldn’t load quotes. Check your connection.{" "}
+          <button type="button" className="underline" onClick={reload}>
+            Retry
+          </button>
         </div>
       )}
 
@@ -203,6 +216,15 @@ export default function Watchlist() {
           ))}
         </div>
       )}
+
+      <NewsList
+        news={news.data}
+        loading={news.loading}
+        error={news.error}
+        onRetry={news.reload}
+        title="Market headlines"
+        emptyText="No market headlines right now."
+      />
     </div>
   );
 }

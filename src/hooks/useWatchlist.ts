@@ -2,11 +2,9 @@
 
 import { useCallback, useState } from "react";
 import {
-  DEFAULT_WATCHLIST,
   addWatchlist,
   loadWatchlist,
   removeWatchlist,
-  saveWatchlist,
   toggleWatchlist,
 } from "../lib/watchlist";
 
@@ -25,9 +23,5 @@ export function useWatchlist() {
     setSymbols((prev) => removeWatchlist(prev, symbol));
   }, []);
 
-  const reset = useCallback(() => {
-    setSymbols(saveWatchlist(DEFAULT_WATCHLIST));
-  }, []);
-
-  return { symbols, toggle, add, remove, reset };
+  return { symbols, toggle, add, remove };
 }

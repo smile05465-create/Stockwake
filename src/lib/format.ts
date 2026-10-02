@@ -49,15 +49,3 @@ export function formatDate(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
-
-/** Tailwind color token for a change value. */
-export function trendClass(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value) || value === 0) return "text-slate-300";
-  return value > 0 ? "text-emerald-400" : "text-rose-400";
-}
-
-/** Background/fill variant of the trend color. */
-export function trendBgClass(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value) || value === 0) return "bg-slate-500/15";
-  return value > 0 ? "bg-emerald-500/15" : "bg-rose-500/15";
-}

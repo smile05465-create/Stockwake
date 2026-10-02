@@ -6,8 +6,6 @@ import {
   formatPercent,
   formatPrice,
   formatVolume,
-  trendBgClass,
-  trendClass,
 } from "./format";
 
 describe("formatPrice", () => {
@@ -85,20 +83,5 @@ describe("formatDate", () => {
   it("passes through garbage", () => {
     expect(formatDate("not-a-date")).toBe("not-a-date");
     expect(formatDate(null)).toBe("—");
-  });
-});
-
-describe("trend classes", () => {
-  it("maps direction to colors", () => {
-    expect(trendClass(1)).toBe("text-emerald-400");
-    expect(trendClass(-1)).toBe("text-rose-400");
-    expect(trendClass(0)).toBe("text-slate-300");
-    expect(trendClass(null)).toBe("text-slate-300");
-  });
-
-  it("maps background variants", () => {
-    expect(trendBgClass(2)).toBe("bg-emerald-500/15");
-    expect(trendBgClass(-2)).toBe("bg-rose-500/15");
-    expect(trendBgClass(0)).toBe("bg-slate-500/15");
   });
 });

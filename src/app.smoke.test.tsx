@@ -38,6 +38,10 @@ describe("App routes render", () => {
     const html = renderAt("/watchlist");
     expect(html).toContain("Watchlist");
     expect(html).toContain("Add symbol");
+    // Market headlines render below the quote grid (keyless CNBC feed).
+    expect(html).toContain("Market headlines");
+    // AddSymbol control for saving new tickers.
+    expect(html).toContain('aria-label="Add symbol to watchlist"');
   });
 
   it("renders a symbol detail page", () => {
@@ -55,6 +59,9 @@ describe("App routes render", () => {
     for (const label of ["1D", "1W", "1M", "3M", "1Y", "5Y"]) {
       expect(html).toContain(`>${label}</button>`);
     }
+    // Fact rows that always render (values fill in when the quote loads).
+    expect(html).toContain("Currency");
+    expect(html).toContain("Previous close");
     // A symbol outside the default watchlist shows the add state.
     expect(renderAt("/symbol/AMD")).toContain("Add to Watchlist");
   });

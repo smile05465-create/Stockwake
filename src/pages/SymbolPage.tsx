@@ -17,6 +17,7 @@ import { useWatchlist } from "../hooks/useWatchlist";
 import NewsList from "../components/NewsList";
 import PriceChart from "../components/PriceChart";
 import {
+  formatChange,
   formatCompact,
   formatDate,
   formatPercent,
@@ -91,6 +92,18 @@ export default function SymbolPage() {
   const first = bars[0]?.c ?? quote?.price ?? 0;
   const last = bars[bars.length - 1]?.c ?? quote?.price ?? 0;
   const rangeChangePct = first > 0 ? ((last - first) / first) * 100 : 0;
+
+  // Real, derived facts for the selected range — never fabricated.
+  const periodHigh = bars.length > 0 ? Math.max(...bars.map((b) => b.h)) : null;
+  const periodLow = bars.length > 0 ? Math.min(...bars.map((b) => b.l)) : null;
+  // Where the latest price sits inside the 52-week range (0–100%).
+  const range52Pos =
+    quote && quote.high52w != null && quote.low52w != null && quote.high52w > quote.low52w
+      ? Math.min(
+          100,
+          Math.max(0, ((quote.price - quote.low52w) / (quote.high52w - quote.low52w)) * 100),
+        )
+      : null;
 
   if (quoteState.error && !bundle) {
     return (
@@ -178,9 +191,8 @@ export default function SymbolPage() {
           </div>
           {quote && (
             <p className="num text-sm text-slate-500 mt-1">
-              {quote.change > 0 ? "+" : ""}
-              {formatPrice(quote.change)} today
-              {quote.date && <> · {formatDate(quote.date)}</>}
+              {formatChange(quote.change)} vs prev. close
+              {quote.date && <> · as of {formatDate(quote.date)}</>}
             </p>
           )}
           {quote?.extended && (
@@ -230,6 +242,11 @@ export default function SymbolPage() {
                   Last session vs previous close · daily data
                 </p>
               )}
+              {range !== "1D" && periodHigh != null && periodLow != null && (
+                <p className="num text-[11px] text-slate-600 mt-0.5">
+                  Daily bars · period H {formatPrice(periodHigh)} – L {formatPrice(periodLow)}
+                </p>
+              )}
             </div>
             <div className="flex w-fit rounded-lg bg-ink-850 border border-ink-700 p-0.5">
               {RANGES.map((r) => (
@@ -250,7 +267,13 @@ export default function SymbolPage() {
             </div>
           </div>
 
-          {historyState.error && (
+          {historyState.error && quote?.kind === "index" && (
+            <div className="h-40 flex items-center justify-center text-sm text-slate-500 text-center px-4">
+              Daily chart data isn’t available for this index from our data feeds — the quote
+              and statistics above still load from public feeds.
+            </div>
+          )}
+          {historyState.error && quote?.kind !== "index" && (
             <p className="text-sm text-down py-6 text-center break-words">
               Couldn’t load history — {historyState.error.message}{" "}
               <button type="button" className="underline" onClick={historyState.reload}>
@@ -264,7 +287,7 @@ export default function SymbolPage() {
           {!historyState.loading && !historyState.error && bars.length === 0 && (
             <div className="h-40 flex items-center justify-center text-sm text-slate-500 text-center px-4">
               No chartable price history for {symbol} in this range. Quotes and statistics
-              above are still live.
+              above are unaffected.
             </div>
           )}
           {!historyState.loading && bars.length > 0 && (
@@ -282,11 +305,33 @@ export default function SymbolPage() {
               label="52-week range"
               value={quote ? `${num(quote.low52w)} – ${num(quote.high52w)}` : "—"}
             />
+            {range52Pos != null && (
+              <div
+                className="py-2 border-b border-ink-800"
+                role="img"
+                aria-label={`${Math.round(range52Pos)}% of the 52-week range`}
+              >
+                <div className="relative h-1.5 rounded-full bg-ink-700">
+                  <span
+                    className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-flare-400"
+                    style={{ left: `${range52Pos}%` }}
+                  />
+                </div>
+                <div className="mt-1.5 flex items-baseline justify-between gap-2 text-[11px] text-slate-500">
+                  <span className="num">{num(quote?.low52w)}</span>
+                  <span className="num text-flare-400">
+                    {Math.round(range52Pos)}% of 52W range
+                  </span>
+                  <span className="num">{num(quote?.high52w)}</span>
+                </div>
+              </div>
+            )}
             <Stat label="Volume" value={quote ? formatVolume(quote.volume) : "—"} />
             <Stat
               label="Market cap"
               value={quote?.marketCap != null ? formatCompact(quote.marketCap) : "—"}
             />
+            <Stat label="Currency" value={quote?.currency || "—"} />
             <Stat label="P/E ratio" value={stats ? num(stats.pe) : "—"} />
             <Stat label="EPS (TTM)" value={stats ? num(stats.eps) : "—"} />
             <Stat
@@ -309,6 +354,7 @@ export default function SymbolPage() {
             news={newsState.data}
             loading={newsState.loading}
             error={newsState.error}
+            onRetry={newsState.reload}
             title={`News for ${symbol.toUpperCase()}`}
             emptyText="No recent headlines for this symbol."
           />

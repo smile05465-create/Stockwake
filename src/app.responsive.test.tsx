@@ -72,6 +72,8 @@ describe("phones (360 / 390 / 430px — everything below sm=640)", () => {
     expect(markets).toContain("sm:hidden"); // mobile nav row in the header
     expect(markets).toContain('href="/watchlist"');
     expect(markets).toContain('href="/markets"');
+    // Mobile nav links use a taller touch target than the desktop nav.
+    expect(markets).toContain("px-3 py-2 rounded-md");
   });
 
   it("keeps the desktop nav hidden on phones", () => {
@@ -82,6 +84,9 @@ describe("phones (360 / 390 / 430px — everything below sm=640)", () => {
     expect(markets).toContain("min-w-0"); // flex child can shrink below content width
     expect(markets).toContain("max-w-xs"); // phone-friendly cap
     expect(markets).toContain('aria-label="Search symbols"');
+    // Search exposes combobox semantics for screen readers (listbox renders on focus).
+    expect(markets).toContain('role="combobox"');
+    expect(markets).toContain('aria-expanded="false"');
   });
 
   it("renders the movers card with stacked header and tab controls", () => {

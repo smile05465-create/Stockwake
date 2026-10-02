@@ -1,6 +1,6 @@
 # Stockwake
 
-**Wake up to the market.** Stockwake is a fast, free, no-signup stock market terminal: live
+**Wake up to the market.** Stockwake is a fast, free, no-signup stock market terminal: latest
 quotes, interactive charts, market movers, news and a persistent watchlist — in one focused
 dark-themed UI that works on desktop and phone.
 
@@ -8,16 +8,18 @@ dark-themed UI that works on desktop and phone.
 
 ## Features
 
-- **Landing page** with a live index pulse (S&P 500, Dow, Nasdaq, VIX) and a clear path into the dashboard.
+- **Landing page** with an index pulse (S&P 500, Dow, Nasdaq, VIX) and a clear path into the dashboard.
 - **Markets dashboard** (`#/markets`) — index strip, gainers / losers / most-active movers,
   watchlist snapshot and market headlines.
 - **Watchlist** (`#/watchlist`) — add symbols via search or the detail page's
-  **Add to Watchlist** button, summary strip, quote grid.
+  **Add to Watchlist** button, summary strip, quote grid with price, daily change, volume and
+  market cap, plus market headlines.
   Persisted in `localStorage` (up to 30 symbols), so it survives refreshes and browser restarts.
-- **Symbol detail** (`#/symbol/AAPL`) — symbol, company name, live price with daily change and
+- **Symbol detail** (`#/symbol/AAPL`) — symbol, company name, latest price with daily change and
   percent, session badge (pre/open/post/closed), volume / market cap / exchange meta,
   1D–5Y interactive SVG chart (1D, 1W, 1M, 3M, 1Y, 5Y pills) with hover crosshair and volume,
-  key statistics, per-symbol news and a one-tap **Add to Watchlist** button.
+  52-week position bar, key statistics, per-symbol news and a one-tap **Add to Watchlist** button.
+  Data is labeled honestly: daily bars for charts, "as of" dates for quotes — no real-time claims.
 - **Global ticker search** — debounced, keyboard-navigable, jumps straight to detail pages.
 - Fully responsive: dedicated mobile nav row, touch-friendly controls, no hover-only affordances.
 

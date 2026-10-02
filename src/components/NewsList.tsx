@@ -6,6 +6,8 @@ interface Props {
   news: NewsItem[] | null;
   loading: boolean;
   error: Error | null;
+  /** Optional retry handler for the error state. */
+  onRetry?: () => void;
   title?: string;
   emptyText?: string;
 }
@@ -26,6 +28,7 @@ export default function NewsList({
   news,
   loading,
   error,
+  onRetry,
   title = "Latest headlines",
   emptyText = "No headlines right now.",
 }: Props) {
@@ -33,7 +36,16 @@ export default function NewsList({
     <section className="card p-4 sm:p-5">
       <h2 className="text-base font-semibold text-slate-100 mb-3">{title}</h2>
 
-      {error && <p className="text-sm text-down py-4 text-center">Couldn’t load news.</p>}
+      {error && (
+        <p className="text-sm text-down py-4 text-center">
+          Couldn’t load news.{" "}
+          {onRetry && (
+            <button type="button" className="underline" onClick={onRetry}>
+              Retry
+            </button>
+          )}
+        </p>
+      )}
       {loading && !news && (
         <div className="py-8 text-center text-sm text-slate-500">Loading headlines…</div>
       )}

@@ -62,26 +62,20 @@ export function toggleWatchlist(symbols: string[], symbol: string): string[] {
   const s = symbol.trim().toUpperCase();
   if (!s) return symbols;
   return symbols.includes(s)
-    ? saveWatchlistInline(symbols.filter((x) => x !== s))
-    : saveWatchlistInline([...symbols, s]);
+    ? saveWatchlist(symbols.filter((x) => x !== s))
+    : saveWatchlist([...symbols, s]);
 }
 
 /** Add if missing (no-op otherwise); enforces the cap. */
 export function addWatchlist(symbols: string[], symbol: string): string[] {
   const s = symbol.trim().toUpperCase();
   if (!s || symbols.includes(s)) return symbols;
-  return saveWatchlistInline([...symbols, s]);
+  return saveWatchlist([...symbols, s]);
 }
 
 /** Remove if present (no-op otherwise). */
 export function removeWatchlist(symbols: string[], symbol: string): string[] {
   const s = symbol.trim().toUpperCase();
   if (!symbols.includes(s)) return symbols;
-  return saveWatchlistInline(symbols.filter((x) => x !== s));
-}
-
-function saveWatchlistInline(symbols: string[]): string[] {
-  const next = dedupe(symbols).slice(0, MAX_SYMBOLS);
-  safeWrite(next);
-  return next;
+  return saveWatchlist(symbols.filter((x) => x !== s));
 }

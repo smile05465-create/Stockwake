@@ -13,6 +13,8 @@ interface Props {
   movers: Mover[] | null;
   loading: boolean;
   error: Error | null;
+  /** Optional retry handler for the error state. */
+  onRetry?: () => void;
 }
 
 const TABS: Array<{ id: MoversTab; label: string }> = [
@@ -21,7 +23,7 @@ const TABS: Array<{ id: MoversTab; label: string }> = [
   { id: "active", label: "Most active" },
 ];
 
-export default function MoversTable({ tab, onTabChange, movers, loading, error }: Props) {
+export default function MoversTable({ tab, onTabChange, movers, loading, error, onRetry }: Props) {
   return (
     <section className="card p-4 sm:p-5">
       {/* Stacks the title above the tabs on phones; one row from sm up (desktop unchanged). */}
@@ -53,6 +55,14 @@ export default function MoversTable({ tab, onTabChange, movers, loading, error }
       {error && (
         <p className="text-sm text-down py-6 text-center break-words">
           Couldn’t load movers: {error.message}
+          {onRetry && (
+            <>
+              {" "}
+              <button type="button" className="underline" onClick={onRetry}>
+                Retry
+              </button>
+            </>
+          )}
         </p>
       )}
       {loading && !movers && (

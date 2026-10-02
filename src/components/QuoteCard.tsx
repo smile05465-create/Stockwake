@@ -6,12 +6,10 @@ import { formatCompact, formatPercent, formatPrice } from "../lib/format";
 
 interface Props {
   quote: Quote;
-  /** Show exchange/cap subtitle line. */
-  subtitle?: string;
   remove?: () => void;
 }
 
-export default function QuoteCard({ quote, subtitle, remove }: Props) {
+export default function QuoteCard({ quote, remove }: Props) {
   const up = quote.changePct > 0;
   const flat = quote.changePct === 0;
   const tone = flat ? "text-slate-300" : up ? "text-up" : "text-down";
@@ -43,9 +41,12 @@ export default function QuoteCard({ quote, subtitle, remove }: Props) {
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-        <span>{subtitle ?? quote.exchange}</span>
-        {quote.marketCap != null && <span className="num">Cap {formatCompact(quote.marketCap)}</span>}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-slate-500">
+        <span className="min-w-0 truncate">{quote.exchange || "—"}</span>
+        <span className="num">
+          Vol {formatCompact(quote.volume)}
+          {quote.marketCap != null && ` · Cap ${formatCompact(quote.marketCap)}`}
+        </span>
       </div>
 
       {remove && (

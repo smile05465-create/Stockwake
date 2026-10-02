@@ -15,12 +15,18 @@ import { formatPercent, formatPrice } from "../lib/format";
 const INDICES = [".SPX", ".DJI", "IXIC", ".VIX", "RUT"];
 
 function IndexStrip() {
-  const { data, error, loading } = useAsync<CnbcQuote[]>(() => fetchCnbcQuotes(INDICES), []);
+  const { data, error, loading, reload } = useAsync<CnbcQuote[]>(
+    () => fetchCnbcQuotes(INDICES),
+    [],
+  );
 
   if (error) {
     return (
       <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-down">
-        Couldn’t load index quotes. <button type="button" className="underline" onClick={() => window.location.reload()}>Retry</button>
+        Couldn’t load index quotes. {" "}
+        <button type="button" className="underline" onClick={reload}>
+          Retry
+        </button>
       </div>
     );
   }
@@ -135,7 +141,7 @@ export default function Markets() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-50 tracking-tight">Markets</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Indices, movers, your watchlist and headlines — live.
+            Indices, movers, your watchlist and headlines — from public feeds.
           </p>
         </div>
         <span className="hidden sm:block text-xs text-slate-600 num">
@@ -158,11 +164,17 @@ export default function Markets() {
             movers={movers.data}
             loading={movers.loading}
             error={movers.error}
+            onRetry={movers.reload}
           />
           <WatchlistSnapshot />
         </div>
         <div className="md:col-span-2">
-          <NewsList news={news.data} loading={news.loading} error={news.error} />
+          <NewsList
+            news={news.data}
+            loading={news.loading}
+            error={news.error}
+            onRetry={news.reload}
+          />
         </div>
       </div>
     </div>
