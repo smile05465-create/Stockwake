@@ -14,6 +14,7 @@ import type { CnbcQuote } from "../lib/api";
 import type { Bar, ChartRange, KeyStats, NewsItem, Quote } from "../lib/types";
 import { useAsync } from "../hooks/useAsync";
 import { useWatchlist } from "../hooks/useWatchlist";
+import { isWatchlistFull, MAX_SYMBOLS } from "../lib/watchlist";
 import NewsList from "../components/NewsList";
 import PriceChart from "../components/PriceChart";
 import {
@@ -53,6 +54,7 @@ export default function SymbolPage() {
   const [range, setRange] = useState<ChartRange>("1M");
   const { symbols, toggle } = useWatchlist();
   const watched = symbols.includes(symbol);
+  const [notice, setNotice] = useState("");
 
   const quoteLoader = useCallback(async (): Promise<QuoteBundle | null> => {
     const [sa, cb] = await Promise.all([
@@ -204,7 +206,14 @@ export default function SymbolPage() {
           <div className="mt-3 flex sm:justify-end">
             <button
               type="button"
-              onClick={() => toggle(symbol)}
+              onClick={() => {
+                if (!watched && isWatchlistFull(symbols)) {
+                  setNotice(`Your watchlist is full (${MAX_SYMBOLS}). Remove one to add this.`);
+                  return;
+                }
+                setNotice("");
+                toggle(symbol);
+              }}
               aria-pressed={watched}
               aria-label={
                 watched
@@ -220,6 +229,11 @@ export default function SymbolPage() {
               {watched ? "★ Remove from Watchlist" : "☆ Add to Watchlist"}
             </button>
           </div>
+          {notice && (
+            <p className="mt-2 text-xs text-flare-400 sm:text-right" role="status">
+              {notice}
+            </p>
+          )}
         </div>
       </div>
 

@@ -5,7 +5,7 @@
  */
 
 const STORAGE_KEY = "stockwake.watchlist.v1";
-const MAX_SYMBOLS = 30;
+export const MAX_SYMBOLS = 30;
 
 export const DEFAULT_WATCHLIST = ["AAPL", "MSFT", "NVDA", "SPY", "TSLA"];
 
@@ -55,6 +55,11 @@ export function saveWatchlist(symbols: string[]): string[] {
   const next = dedupe(symbols).slice(0, MAX_SYMBOLS);
   safeWrite(next);
   return next;
+}
+
+/** True when no new symbol can be added without removing one. */
+export function isWatchlistFull(symbols: string[]): boolean {
+  return symbols.length >= MAX_SYMBOLS;
 }
 
 /** Toggle membership: returns the new list with symbol added or removed. */

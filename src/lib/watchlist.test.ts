@@ -132,3 +132,12 @@ describe("localStorage persistence", () => {
     expect(loadWatchlist()).toEqual(DEFAULT_WATCHLIST);
   });
 });
+
+describe("capacity", () => {
+  it("reports full exactly at the cap", async () => {
+    const { isWatchlistFull, MAX_SYMBOLS } = await import("./watchlist");
+    const full = Array.from({ length: MAX_SYMBOLS }, (_, i) => `S${i}`);
+    expect(isWatchlistFull(full.slice(0, MAX_SYMBOLS - 1))).toBe(false);
+    expect(isWatchlistFull(full)).toBe(true);
+  });
+});
