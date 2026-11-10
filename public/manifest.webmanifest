@@ -1,0 +1,18 @@
+{
+  "name": "Stockwake — Market Intelligence",
+  "short_name": "Stockwake",
+  "description": "Free, no-signup stock dashboard: quotes, charts, movers, news and a watchlist that works on your phone.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060a13",
+  "theme_color": "#0a1020",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

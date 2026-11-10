@@ -32,6 +32,27 @@ const RSS2JSON = "https://api.rss2json.com/v1/api.json";
 
 const CNBC_TOP_NEWS_RSS = "https://www.cnbc.com/id/100003114/device/rss/rss.html";
 
+/**
+ * Optional server-side relay for price history.
+ *
+ * stockanalysis.com stopped sending CORS headers, so a static page cannot read
+ * its history endpoint directly. Set VITE_HISTORY_PROXY to a small endpoint that
+ * forwards `/api/...` to the provider and returns it with CORS, and this module
+ * will route history through it. Contract:
+ *
+ *   GET <proxy>?p=<path after /api/>
+ *   → the provider's JSON, unchanged, with Access-Control-Allow-Origin
+ *
+ * Without the variable, the direct call is attempted (and fails for browsers).
+ */
+const HISTORY_PROXY = (import.meta.env.VITE_HISTORY_PROXY ?? "").trim();
+
+function historyUrl(path: string): string {
+  if (!HISTORY_PROXY) return `${SA_BASE}${path}`;
+  const sep = HISTORY_PROXY.includes("?") ? "&" : "?";
+  return `${HISTORY_PROXY}${sep}p=${encodeURIComponent(path.replace(/^\//, ""))}`;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -283,7 +304,9 @@ const SA_RANGE_PARAM: Record<ChartRange, string> = {
 /** OHLCV history for a symbol over a display range. */
 export async function fetchHistory(symbol: string, range: ChartRange): Promise<Bar[]> {
   const param = SA_RANGE_PARAM[range];
-  const url = `${SA_BASE}/symbol/s/${encodeURIComponent(symbol)}/history?range=${param}&period=Daily`;
+  const url = historyUrl(
+    `/symbol/s/${encodeURIComponent(symbol)}/history?range=${param}&period=Daily`,
+  );
   const bars = await marketCache.wrap(url, 300_000, async () => {
     const json = (await fetchJson(url)) as { data?: SaBar[] };
     return parseHistory(json);

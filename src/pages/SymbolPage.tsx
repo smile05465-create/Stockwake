@@ -274,12 +274,23 @@ export default function SymbolPage() {
             </div>
           )}
           {historyState.error && quote?.kind !== "index" && (
-            <p className="text-sm text-down py-6 text-center break-words">
-              Couldn’t load history — {historyState.error.message}{" "}
-              <button type="button" className="underline" onClick={historyState.reload}>
-                Retry
+            <div className="py-6 text-center px-4">
+              <p className="text-sm text-slate-400">
+                Chart history is unavailable right now.
+              </p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                The public data source stopped allowing browser requests. The quote, statistics and
+                news above are unaffected — today’s move is real, only the historical series is
+                missing.
+              </p>
+              <button
+                type="button"
+                className="mt-3 text-xs uppercase tracking-wide text-flare-400 hover:text-flare-300 underline"
+                onClick={historyState.reload}
+              >
+                Try again
               </button>
-            </p>
+            </div>
           )}
           {historyState.loading && bars.length === 0 && (
             <div className="h-72 rounded-lg bg-ink-850/60 animate-pulse" />
