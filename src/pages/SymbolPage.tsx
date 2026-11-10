@@ -214,12 +214,12 @@ export default function SymbolPage() {
 
         <div className="text-left sm:text-right">
           <div className="flex sm:justify-end items-baseline gap-3">
-            <span className="num text-4xl font-semibold text-slate-50">
+            <span className="num-lg text-4xl font-semibold text-slate-50">
               {quote ? formatPrice(quote.price) : "—"}
             </span>
             {quote && (
               <span
-                className={`num text-lg ${
+                className={`num-lg text-lg ${
                   quote.changePct > 0
                     ? "text-up"
                     : quote.changePct < 0

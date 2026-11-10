@@ -45,6 +45,7 @@ function IndexStrip() {
             </div>
           );
         }
+        const unknown = q.unknownChange === true;
         const up = q.changePct > 0;
         const flat = q.changePct === 0;
         return (
@@ -57,9 +58,21 @@ function IndexStrip() {
             <div className="mt-1 num text-xl font-semibold text-slate-100">
               {formatPrice(q.price)}
             </div>
-            <div className={`num text-xs mt-0.5 ${flat ? "text-slate-400" : up ? "text-up" : "text-down"}`}>
-              {formatPercent(q.changePct)} · {q.change > 0 ? "+" : ""}
-              {formatPrice(q.change)}
+            <div
+              className={`num text-xs mt-0.5 ${
+                unknown ? "text-slate-400" : flat ? "text-slate-400" : up ? "text-up" : "text-down"
+              }`}
+            >
+              {unknown ? (
+                // The feed did not report a move. Saying "0.00" would be a lie
+                // and a rise would be a guess.
+                <span title="The feed did not report today's move">—</span>
+              ) : (
+                <>
+                  {formatPercent(q.changePct)} · {q.change > 0 ? "+" : ""}
+                  {formatPrice(q.change)}
+                </>
+              )}
               {loading && <span className="ml-1 text-flare-400">•</span>}
             </div>
           </Link>

@@ -37,10 +37,22 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Numbers everywhere should line up in columns. */
+  /*
+   * Numbers use the sans face with tabular figures, so digits sit in fixed
+   * columns without the gap a monospace face puts around "." — at 24px a
+   * monospace "350.69" reads as "350 . 69". Tabular figures do the alignment
+   * that monospace was there for.
+   */
   .num {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Display-size numbers: a touch tighter, since large type looks loose. */
+  .num-lg {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   /* Keyboard focus is always visible (inputs keep their own ring utility). */

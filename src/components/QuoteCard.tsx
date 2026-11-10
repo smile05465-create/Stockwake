@@ -33,7 +33,7 @@ export default function QuoteCard({ quote, remove }: Props) {
           </div>
           <div className="text-xs text-slate-500 truncate">{quote.name}</div>
         </Link>
-        <span className={`text-xs num px-1.5 py-0.5 rounded ${chip}`}>
+        <span className={`text-xs px-1.5 py-0.5 rounded ${chip}`}>
           {unknown ? "—" : formatPercent(quote.changePct)}
         </span>
         {quote.stale && (
@@ -47,8 +47,8 @@ export default function QuoteCard({ quote, remove }: Props) {
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-2">
-        <div className={`text-2xl num font-semibold ${tone}`}>{formatPrice(quote.price)}</div>
-        <div className={`text-xs num ${tone}`}>
+        <div className={`text-2xl num-lg font-semibold ${tone}`}>{formatPrice(quote.price)}</div>
+        <div className={`text-xs ${tone}`}>
           {unknown ? "change unavailable" : `${quote.change > 0 ? "+" : ""}${formatPrice(quote.change)}`}
         </div>
       </div>
