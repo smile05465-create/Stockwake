@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import {
   fetchCnbcQuotes,
   fetchPerformance,
+  fetchScannerChanges,
   fetchHistory,
   fetchQuote,
   fetchSymbolNews,
@@ -90,7 +91,19 @@ export default function SymbolPage() {
   const newsState = useAsync<NewsItem[]>(() => fetchSymbolNews(symbol), [symbol]);
 
   const bundle = quoteState.data;
-  const quote = bundle?.quote ?? null;
+  const rawQuote = bundle?.quote ?? null;
+
+  // CNBC withholds the move after hours ("UNCH") and stockanalysis is unreadable
+  // from a browser, so fall back to the scanner for the day's change.
+  const moveState = useAsync(
+    () => (rawQuote?.unknownChange ? fetchScannerChanges([{ symbol, exchange: rawQuote.exchange }]) : Promise.resolve(new Map())),
+    [symbol, rawQuote?.unknownChange],
+  );
+  const move = moveState.data?.get(symbol.toUpperCase());
+  const quote =
+    rawQuote && rawQuote.unknownChange && move?.changePct != null
+      ? { ...rawQuote, change: move.change ?? rawQuote.change, changePct: move.changePct, unknownChange: false }
+      : rawQuote;
   // When the daily series cannot be read (CORS in production), fall back to the
   // range returns we can still get — numbers, clearly labelled as numbers.
   const perfState = useAsync(

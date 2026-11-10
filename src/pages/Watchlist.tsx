@@ -1,7 +1,13 @@
 /** Full watchlist page: grid of quote cards with add/remove. */
 
 import { useCallback, useState } from "react";
-import { fetchCnbcQuotes, fetchMarketNews, fetchQuote, searchSymbols } from "../lib/api";
+import {
+  fetchCnbcQuotes,
+  fetchMarketNews,
+  fetchQuote,
+  fetchScannerChanges,
+  searchSymbols,
+} from "../lib/api";
 import type { CnbcQuote } from "../lib/api";
 import type { NewsItem, Quote } from "../lib/types";
 import { useAsync } from "../hooks/useAsync";
@@ -130,7 +136,7 @@ export default function Watchlist() {
     ]);
     // Match CNBC rows by symbol — the batch may reorder or drop rows.
     const batchBySymbol = new Map(cb.map((q) => [q.symbol.toUpperCase(), q]));
-    return symbols.map((s, i) => {
+    const merged = symbols.map((s, i) => {
       const settled = saResults[i];
       const quote = settled?.status === "fulfilled" ? settled.value : null;
       const batch = batchBySymbol.get(s.toUpperCase());
@@ -139,6 +145,29 @@ export default function Watchlist() {
       if (batch) return batch as unknown as Quote;
       return null;
     });
+
+    // Fill moves the quote feed withheld (CNBC answers "UNCH" after hours and
+    // stockanalysis is unreadable from a browser) with one scanner request.
+    const missing = merged
+      .map((q, i) => ({ q, s: symbols[i] }))
+      .filter(({ q }) => !q || q.unknownChange)
+      .map(({ q, s }) => ({ symbol: s, exchange: q?.exchange ?? null }));
+
+    if (missing.length > 0) {
+      const moves = await fetchScannerChanges(missing);
+      return merged.map((q, i) => {
+        const move = moves.get(symbols[i].toUpperCase());
+        if (!q || !move || move.changePct == null) return q;
+        return {
+          ...q,
+          change: move.change ?? q.change,
+          changePct: move.changePct,
+          unknownChange: false,
+        };
+      });
+    }
+
+    return merged;
   }, [symbols]);
   const { data, error, loading, refreshing, updatedAt, reload } = useAsync<(Quote | null)[]>(loader, [
     symbols.join(","),

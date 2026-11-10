@@ -21,6 +21,8 @@ export interface Quote {
   change: number;
   /** Percent change vs previous close (e.g. -0.81). */
   changePct: number;
+  /** True when the feed withheld the move (e.g. CNBC's "UNCH" after hours). */
+  unknownChange?: boolean;
   previousClose: number;
   open: number | null;
   high: number | null;

@@ -226,6 +226,76 @@ export async function fetchPerformance(
   return null;
 }
 
+/**
+ * Real moves for a batch of symbols, from the TradingView scanner the movers
+ * table already uses. Needed because CNBC withholds `change` after hours
+ * ("UNCH") and the browser cannot read stockanalysis at all — without this the
+ * watchlist would have to say "change unavailable" for every row.
+ */
+export interface ScannerChange {
+  symbol: string;
+  change: number | null;
+  changePct: number | null;
+}
+
+// TradingView names these oddly: "change" is the percentage, "change_abs" is
+// the absolute move.
+const CHANGE_COLUMNS = ["change", "change_abs", "close", "description"];
+
+export function parseScannerChanges(
+  payload: { data?: { s?: string; d?: unknown[] }[] } | null | undefined,
+): ScannerChange[] {
+  const rows = payload?.data ?? [];
+  return rows.flatMap((row) => {
+    const full = String(row.s ?? "");
+    const symbol = full.includes(":") ? full.split(":")[1] : full;
+    const d = row.d ?? [];
+    const num = (v: unknown): number | null => {
+      const n = typeof v === "number" ? v : Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    if (!symbol) return [];
+    return [{ symbol, changePct: num(d[0]), change: num(d[1]) }];
+  });
+}
+
+/**
+ * Fetch moves for many symbols in one request. `exchanges` maps a symbol to the
+ * venue we already know; unknown venues are tried on all three prefixes.
+ */
+export async function fetchScannerChanges(
+  entries: { symbol: string; exchange?: string | null }[],
+): Promise<Map<string, ScannerChange>> {
+  const tickers = new Set<string>();
+  for (const e of entries) {
+    const pref = venuePrefix(e.exchange);
+    if (pref) tickers.add(`${pref}:${e.symbol.toUpperCase()}`);
+    else for (const p of ["NASDAQ", "NYSE", "AMEX"]) tickers.add(`${p}:${e.symbol.toUpperCase()}`);
+  }
+  if (tickers.size === 0) return new Map();
+
+  const list = [...tickers];
+  const out = new Map<string, ScannerChange>();
+  for (let i = 0; i < list.length; i += 60) {
+    const chunk = list.slice(i, i + 60);
+    try {
+      const json = (await marketCache.wrap(`changes:${chunk.join(",")}`, 60_000, async () =>
+        fetchJsonWithBody(TV_SCAN, {
+          symbols: { tickers: chunk, query: { types: [] } },
+          columns: CHANGE_COLUMNS,
+        }),
+      )) as { data?: { s?: string; d?: unknown[] }[] };
+      for (const row of parseScannerChanges(json)) {
+        // First venue to answer for a symbol wins; later duplicates are ignored.
+        if (!out.has(row.symbol)) out.set(row.symbol, row);
+      }
+    } catch {
+      // A failed chunk leaves those symbols unknown rather than wrong.
+    }
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /* Latest quote (stockanalysis)                                        */
 /* ------------------------------------------------------------------ */
@@ -446,6 +516,7 @@ interface CnbcRow {
   last?: string;
   change?: string;
   change_pct?: string;
+  previous_day_closing?: string;
   open?: string;
   high?: string;
   low?: string;
@@ -510,7 +581,29 @@ function mapSession(status: string | undefined): Quote["session"] {
 function cnbcRowToQuote(r: CnbcRow): (Quote & { stats: KeyStats; nextEarnings: string | null }) | null {
   const price = parseNum(r.last);
   if (price == null || !r.symbol) return null;
-  const change = parseNum(r.change) ?? 0;
+
+  // CNBC sends the literal string "UNCH" for change fields after hours. That is
+  // not the same as "unchanged": AAPL was up 2.43% and still arrived as "UNCH".
+  // Prefer arithmetic from the previous close; if the feed withholds both, say
+  // so rather than printing a confident 0.00%.
+  const rawChange = parseNum(r.change);
+  const prevClose = parseNum(r.previous_day_closing);
+  let change = rawChange;
+  let changePct = parseNum(r.change_pct);
+  if (prevClose != null && prevClose > 0) {
+    const computed = price - prevClose;
+    if (change === null && Math.abs(computed) > 0.005) {
+      change = computed;
+      changePct = (computed / prevClose) * 100;
+    } else if (change !== null && Math.abs(computed) > 0.005 && Math.abs(computed - change) > 0.01) {
+      change = computed;
+      changePct = (computed / prevClose) * 100;
+    }
+  }
+  const unknownChange = rawChange === null && (prevClose == null || Math.abs(prevClose - price) < 0.005);
+  change = change ?? 0;
+  changePct = unknownChange ? Number.NaN : (changePct ?? 0);
+
   const kind: AssetKind = r.type === "INDEX" ? "index" : "stock";
   const ext = r.ExtendedMktQuote;
   const extPrice = parseNum(ext?.last);
@@ -531,7 +624,8 @@ function cnbcRowToQuote(r: CnbcRow): (Quote & { stats: KeyStats; nextEarnings: s
     kind,
     price,
     change,
-    changePct: parseNum(r.change_pct) ?? 0,
+    changePct,
+    unknownChange,
     // Derive previous close: CNBC's previous_day_closing is unreliable after hours.
     previousClose: price - change,
     open: parseNum(r.open),
@@ -730,12 +824,54 @@ export function parseNews(
     }));
 }
 
+const NEWS_CACHE_PREFIX = "stockwake.news.";
+
+function readNewsCache(rssUrl: string): NewsItem[] | null {
+  try {
+    const raw = window.localStorage.getItem(NEWS_CACHE_PREFIX + rssUrl);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at: number; items: NewsItem[] };
+    // Keep a day of history: a headline from this morning beats an error card.
+    if (Date.now() - parsed.at > 86_400_000) return null;
+    return Array.isArray(parsed.items) && parsed.items.length > 0 ? parsed.items : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeNewsCache(rssUrl: string, items: NewsItem[]): void {
+  try {
+    window.localStorage.setItem(
+      NEWS_CACHE_PREFIX + rssUrl,
+      JSON.stringify({ at: Date.now(), items }),
+    );
+  } catch {
+    // Cache is a convenience; failing to store it must never break the page.
+  }
+}
+
+/**
+ * rss2json is the only CORS-friendly RSS bridge, and its free tier has a daily
+ * cap that an unlucky shared IP can exhaust. Cache the last good headlines so a
+ * capped day shows this morning's news (each item is time-stamped) instead of an
+ * error card.
+ */
 async function fetchRssJson(rssUrl: string, fallbackSource: string): Promise<NewsItem[]> {
   const url = `${RSS2JSON}?rss_url=${encodeURIComponent(rssUrl)}`;
-  return marketCache.wrap(url, 300_000, async () => {
-    const json = (await fetchJson(url)) as Rss2JsonPayload;
-    return parseNews(json, fallbackSource);
-  });
+  try {
+    const items = await marketCache.wrap(url, 600_000, async () => {
+      const json = (await fetchJson(url)) as Rss2JsonPayload;
+      const parsed = parseNews(json, fallbackSource);
+      if (parsed.length === 0) throw new Error("no headlines in the feed");
+      return parsed;
+    });
+    writeNewsCache(rssUrl, items);
+    return items;
+  } catch (err) {
+    const cached = readNewsCache(rssUrl);
+    if (cached) return cached;
+    throw err;
+  }
 }
 
 /** General market headlines. */

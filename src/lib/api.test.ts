@@ -511,3 +511,132 @@ describe("parsePerformance", () => {
     expect(parsePerformance({ d: [1, 2] })).toBeNull();
   });
 });
+
+describe("parseCnbcQuotes change handling", () => {
+  it("derives change from previous close when CNBC says UNCH", async () => {
+    const { parseCnbcQuotes } = await import("./api");
+    const [q] = parseCnbcQuotes({
+      FormattedQuoteResult: {
+        FormattedQuote: [
+          {
+            symbol: "AAPL",
+            name: "Apple Inc.",
+            last: "350.69",
+            change: "UNCH",
+            change_pct: "UNCH",
+            previous_day_closing: "342.37",
+            type: "STOCK",
+          },
+        ],
+      },
+    });
+    expect(q.change).toBeCloseTo(8.32, 2);
+    expect(q.changePct).toBeCloseTo(2.43, 1);
+  });
+
+  it("treats UNCH with a matching previous close as unknown, not flat", async () => {
+    // Seen live: AAPL +2.43% arrived as last=350.69, change=UNCH,
+    // previous_day_closing=350.69. Identical shape to a genuinely flat stock,
+    // so the honest answer is "we don't know" rather than 0.00%.
+    const { parseCnbcQuotes } = await import("./api");
+    const [q] = parseCnbcQuotes({
+      FormattedQuoteResult: {
+        FormattedQuote: [
+          {
+            symbol: "FLAT",
+            name: "Flat Corp",
+            last: "100.00",
+            change: "UNCH",
+            change_pct: "UNCH",
+            previous_day_closing: "100.00",
+            type: "STOCK",
+          },
+        ],
+      },
+    });
+    expect(q.unknownChange).toBe(true);
+    expect(Number.isNaN(q.changePct)).toBe(true);
+  });
+
+  it("prefers the provider's own numbers when they are present", async () => {
+    const { parseCnbcQuotes } = await import("./api");
+    const [q] = parseCnbcQuotes({
+      FormattedQuoteResult: {
+        FormattedQuote: [
+          {
+            symbol: "X",
+            name: "X",
+            last: "110",
+            change: "+10.00",
+            change_pct: "+10.00",
+            previous_day_closing: "100",
+            type: "STOCK",
+          },
+        ],
+      },
+    });
+    expect(q.change).toBe(10);
+    expect(q.changePct).toBe(10);
+  });
+});
+
+describe("unknown change", () => {
+  it("flags a withheld move instead of claiming zero", async () => {
+    const { parseCnbcQuotes } = await import("./api");
+    const [q] = parseCnbcQuotes({
+      FormattedQuoteResult: {
+        FormattedQuote: [
+          {
+            symbol: "AAPL",
+            name: "Apple Inc.",
+            last: "350.69",
+            change: "UNCH",
+            change_pct: "UNCH",
+            previous_day_closing: "350.69",
+            type: "STOCK",
+          },
+        ],
+      },
+    });
+    expect(q.unknownChange).toBe(true);
+    expect(Number.isNaN(q.changePct)).toBe(true);
+  });
+
+  it("does not flag a real move", async () => {
+    const { parseCnbcQuotes } = await import("./api");
+    const [q] = parseCnbcQuotes({
+      FormattedQuoteResult: {
+        FormattedQuote: [
+          {
+            symbol: "AAPL",
+            name: "Apple Inc.",
+            last: "350.69",
+            change: "+8.32",
+            change_pct: "+2.43",
+            previous_day_closing: "342.37",
+            type: "STOCK",
+          },
+        ],
+      },
+    });
+    expect(q.unknownChange).toBe(false);
+    expect(q.changePct).toBeCloseTo(2.43, 2);
+  });
+});
+
+describe("parseScannerChanges", () => {
+  it("reads TradingView's change columns in their real order", async () => {
+    const { parseScannerChanges } = await import("./api");
+    const [row] = parseScannerChanges({
+      data: [{ s: "NASDAQ:AAPL", d: [2.43, 8.32, 350.69, "Apple Inc."] }],
+    });
+    expect(row.symbol).toBe("AAPL");
+    expect(row.changePct).toBeCloseTo(2.43, 2);
+    expect(row.change).toBeCloseTo(8.32, 2);
+  });
+
+  it("skips rows without a symbol", async () => {
+    const { parseScannerChanges } = await import("./api");
+    expect(parseScannerChanges({ data: [{ d: [1, 2] }] })).toEqual([]);
+  });
+});

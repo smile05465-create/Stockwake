@@ -10,14 +10,19 @@ interface Props {
 }
 
 export default function QuoteCard({ quote, remove }: Props) {
+  const unknown = quote.unknownChange === true;
   const up = quote.changePct > 0;
   const flat = quote.changePct === 0;
-  const tone = flat ? "text-slate-300" : up ? "text-up" : "text-down";
-  const chip = flat
-    ? "bg-slate-500/15 text-slate-300"
-    : up
-      ? "bg-emerald-500/15 text-up"
-      : "bg-rose-500/15 text-down";
+  // An unknown move is neutral, never red: the price did not fall, the feed
+  // just did not say.
+  const tone = unknown ? "text-slate-100" : flat ? "text-slate-300" : up ? "text-up" : "text-down";
+  const chip = unknown
+    ? "bg-slate-500/10 text-slate-500"
+    : flat
+      ? "bg-slate-500/15 text-slate-300"
+      : up
+        ? "bg-emerald-500/15 text-up"
+        : "bg-rose-500/15 text-down";
 
   return (
     <div className="card card-hover p-4 relative group">
@@ -29,15 +34,14 @@ export default function QuoteCard({ quote, remove }: Props) {
           <div className="text-xs text-slate-500 truncate">{quote.name}</div>
         </Link>
         <span className={`text-xs num px-1.5 py-0.5 rounded ${chip}`}>
-          {formatPercent(quote.changePct)}
+          {unknown ? "—" : formatPercent(quote.changePct)}
         </span>
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-2">
         <div className={`text-2xl num font-semibold ${tone}`}>{formatPrice(quote.price)}</div>
         <div className={`text-xs num ${tone}`}>
-          {quote.change > 0 ? "+" : ""}
-          {formatPrice(quote.change)}
+          {unknown ? "change unavailable" : `${quote.change > 0 ? "+" : ""}${formatPrice(quote.change)}`}
         </div>
       </div>
 
