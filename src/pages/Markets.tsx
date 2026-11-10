@@ -6,6 +6,8 @@ import { fetchCnbcQuotes, fetchMarketNews, fetchMovers, fetchQuote } from "../li
 import type { CnbcQuote, MoversTab } from "../lib/api";
 import type { Mover, NewsItem, Quote } from "../lib/types";
 import { useAsync } from "../hooks/useAsync";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import LastUpdated from "../components/LastUpdated";
 import { useWatchlist } from "../hooks/useWatchlist";
 import MoversTable from "../components/MoversTable";
 import NewsList from "../components/NewsList";
@@ -134,6 +136,9 @@ export default function Markets() {
   const [tab, setTab] = useState<MoversTab>("gainers");
   const movers = useAsync<Mover[]>(() => fetchMovers(tab), [tab]);
   const news = useAsync<NewsItem[]>(() => fetchMarketNews(), []);
+  // Prices move; a dashboard that never refreshes is a snapshot.
+  useAutoRefresh(movers.reload, { intervalMs: 60_000, enabled: !movers.error });
+  useAutoRefresh(news.reload, { intervalMs: 300_000, enabled: !news.error });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
@@ -144,13 +149,16 @@ export default function Markets() {
             Indices, movers, your watchlist and headlines — from public feeds.
           </p>
         </div>
-        <span className="hidden sm:block text-xs text-slate-600 num">
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-          })}
-        </span>
+        <div className="hidden sm:flex flex-col items-end gap-1">
+          <span className="text-xs text-slate-600 num">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })}
+          </span>
+          <LastUpdated at={movers.updatedAt} refreshing={movers.refreshing} />
+        </div>
       </div>
 
       <IndexStrip />

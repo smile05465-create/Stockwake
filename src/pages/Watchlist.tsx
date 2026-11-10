@@ -5,6 +5,8 @@ import { fetchCnbcQuotes, fetchMarketNews, fetchQuote, searchSymbols } from "../
 import type { CnbcQuote } from "../lib/api";
 import type { NewsItem, Quote } from "../lib/types";
 import { useAsync } from "../hooks/useAsync";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import LastUpdated from "../components/LastUpdated";
 import { useWatchlist } from "../hooks/useWatchlist";
 import NewsList from "../components/NewsList";
 import QuoteCard from "../components/QuoteCard";
@@ -138,12 +140,13 @@ export default function Watchlist() {
       return null;
     });
   }, [symbols]);
-  const { data, error, loading, reload } = useAsync<(Quote | null)[]>(loader, [
+  const { data, error, loading, refreshing, updatedAt, reload } = useAsync<(Quote | null)[]>(loader, [
     symbols.join(","),
   ]);
   const quotes = (data ?? []).filter((q): q is Quote => q !== null);
   // Market headlines from the same keyless feed the dashboard uses.
   const news = useAsync<NewsItem[]>(() => fetchMarketNews(), []);
+  useAutoRefresh(reload, { intervalMs: 60_000, enabled: !error && symbols.length > 0 });
 
   // Summary strip derived from loaded quotes.
   const gainers = quotes.filter((q) => q.changePct > 0).length;
@@ -161,6 +164,7 @@ export default function Watchlist() {
           <p className="text-sm text-slate-500 mt-1">
             Saved in your browser — {symbols.length}/30 symbols.
           </p>
+          <LastUpdated at={updatedAt} refreshing={refreshing} className="mt-1 block" />
         </div>
         <div className="sm:max-w-sm w-full">
           <AddSymbol onAdd={add} count={symbols.length} />

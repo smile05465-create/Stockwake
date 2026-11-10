@@ -14,6 +14,8 @@ import type { CnbcQuote } from "../lib/api";
 import type { Bar, ChartRange, KeyStats, NewsItem, Quote } from "../lib/types";
 import { useAsync } from "../hooks/useAsync";
 import { useWatchlist } from "../hooks/useWatchlist";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import LastUpdated from "../components/LastUpdated";
 import { isWatchlistFull, MAX_SYMBOLS } from "../lib/watchlist";
 import NewsList from "../components/NewsList";
 import PriceChart from "../components/PriceChart";
@@ -81,6 +83,8 @@ export default function SymbolPage() {
 
   const quoteState = useAsync<QuoteBundle | null>(quoteLoader, [symbol]);
   const historyState = useAsync<Bar[]>(() => fetchHistory(symbol, range), [symbol, range]);
+  // Quotes are live; the daily history behind the chart is not.
+  useAutoRefresh(quoteState.reload, { intervalMs: 60_000, enabled: !quoteState.error });
   const newsState = useAsync<NewsItem[]>(() => fetchSymbolNews(symbol), [symbol]);
 
   const bundle = quoteState.data;
@@ -191,6 +195,11 @@ export default function SymbolPage() {
               </span>
             )}
           </div>
+          <LastUpdated
+            at={quoteState.updatedAt}
+            refreshing={quoteState.refreshing}
+            className="block sm:text-right mt-1"
+          />
           {quote && (
             <p className="num text-sm text-slate-500 mt-1">
               {formatChange(quote.change)} vs prev. close
