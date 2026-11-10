@@ -95,6 +95,16 @@ async function fetchJson(url: string, init?: RequestInit, attempts = 2): Promise
 }
 
 /** POST helper: same retry/back-off behaviour as fetchJson. */
+/** Fetch a URL as text, with a timeout — RSS bridges hand back XML/HTML. */
+async function fetchText(url: string, timeoutMs = 7_000): Promise<string> {
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout?.(timeoutMs),
+    headers: { Accept: "text/xml, application/xml, text/plain, */*" },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return await res.text();
+}
+
 async function fetchJsonWithBody(url: string, body: unknown, attempts = 2): Promise<unknown> {
   let lastError: unknown = new Error(`Request failed: ${url}`);
   for (let i = 0; i < attempts; i++) {
@@ -884,33 +894,157 @@ function writeNewsCache(rssUrl: string, items: NewsItem[]): void {
   }
 }
 
+const XML_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+};
+
+/** Undo the escaping a feed applies to its own text. */
+function decodeXml(raw: string): string {
+  return raw
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&([a-zA-Z]+);/g, (m, name: string) => XML_ENTITIES[name] ?? m)
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The text of the first `<tag>` inside a fragment, or an empty string. */
+function xmlField(fragment: string, tag: string): string {
+  const match = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i").exec(fragment);
+  return match ? decodeXml(match[1]) : "";
+}
+
 /**
- * rss2json is the only CORS-friendly RSS bridge, and its free tier has a daily
- * cap that an unlucky shared IP can exhaust. Cache the last good headlines so a
- * capped day shows this morning's news (each item is time-stamped) instead of an
- * error card.
+ * Read an RSS document into news items. The bridges mostly hand back the
+ * feed's own XML, so this walks `<item>` elements itself — no DOMParser, which
+ * keeps it identical in the browser and under test. Exported because this is
+ * the part that breaks silently when a feed changes its markup.
  */
-async function fetchRssJson(rssUrl: string, fallbackSource: string): Promise<NewsItem[]> {
-  const url = `${RSS2JSON}?rss_url=${encodeURIComponent(rssUrl)}`;
-  try {
-    const items = await marketCache.wrap(url, 600_000, async () => {
-      const json = (await fetchJson(url)) as Rss2JsonPayload;
-      const parsed = parseNews(json, fallbackSource);
-      if (parsed.length === 0) throw new Error("no headlines in the feed");
-      return parsed;
+export function parseRssXml(xml: string, fallbackSource: string): NewsItem[] {
+  if (!xml) return [];
+  const blocks = xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item>/gi) ?? [];
+  const out: NewsItem[] = [];
+  for (const block of blocks) {
+    const title = xmlField(block, "title");
+    const link = xmlField(block, "link") || xmlField(block, "guid");
+    if (!title || !link) continue;
+    out.push({
+      title,
+      url: link,
+      publishedAt: xmlField(block, "pubDate") || xmlField(block, "dc:date"),
+      source: xmlField(block, "source") || fallbackSource,
     });
-    writeNewsCache(rssUrl, items);
-    return items;
-  } catch (err) {
-    const cached = readNewsCache(rssUrl);
-    if (cached) return cached;
-    throw err;
+  }
+  return out;
+}
+
+/**
+ * Every bridge is somebody's free service, and each one fails in its own way:
+ * rss2json caps a shared IP by the day, allorigins and codetabs go down for
+ * hours, and none of them promise anything. They are tried in turn — the one
+ * that worked last time first, so a healthy setup pays for exactly one request.
+ */
+interface RssBridge {
+  id: string;
+  build: (rssUrl: string) => string;
+  parse: (body: string, fallbackSource: string) => NewsItem[];
+}
+
+const RSS_BRIDGES: RssBridge[] = [
+  {
+    id: "rss2json",
+    build: (rss) => `${RSS2JSON}?rss_url=${encodeURIComponent(rss)}`,
+    parse: (body, source) => {
+      try {
+        return parseNews(JSON.parse(body) as Rss2JsonPayload, source);
+      } catch {
+        return [];
+      }
+    },
+  },
+  {
+    id: "allorigins",
+    build: (rss) => `https://api.allorigins.win/raw?url=${encodeURIComponent(rss)}`,
+    parse: parseRssXml,
+  },
+  {
+    id: "codetabs",
+    build: (rss) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rss)}`,
+    parse: parseRssXml,
+  },
+];
+
+/** Fresh headlines per feed, so a tab switch does not re-ask every bridge. */
+const newsMemo = new Map<string, { at: number; items: NewsItem[] }>();
+
+const BRIDGE_PREF_KEY = "stockwake.news.bridge";
+
+/** Fresh headlines per feed, so a tab switch does not re-ask every bridge. */
+
+function preferredBridgeId(): string | null {
+  try {
+    return window.localStorage.getItem(BRIDGE_PREF_KEY);
+  } catch {
+    return null;
   }
 }
 
+function rememberBridge(id: string): void {
+  try {
+    window.localStorage.setItem(BRIDGE_PREF_KEY, id);
+  } catch {
+    // A remembered preference is a nicety, never a requirement.
+  }
+}
+
+/**
+ * Headlines for one feed URL, from whichever bridge answers first. The last
+ * good set is cached for a day, so a day of bridge failures shows this
+ * morning's news (every item is time-stamped) rather than an error card.
+ */
+async function fetchHeadlines(rssUrl: string, fallbackSource: string): Promise<NewsItem[]> {
+  const memoKey = `${rssUrl}|${fallbackSource}`;
+  const memo = newsMemo.get(memoKey);
+  if (memo && Date.now() - memo.at < 600_000) return memo.items;
+
+  const preferred = preferredBridgeId();
+  const order = [...RSS_BRIDGES].sort((a, b) => {
+    if (a.id === preferred) return -1;
+    if (b.id === preferred) return 1;
+    return 0;
+  });
+
+  for (const bridge of order) {
+    try {
+      const body = await fetchText(bridge.build(rssUrl));
+      const items = bridge.parse(body, fallbackSource).slice(0, 30);
+      if (items.length > 0) {
+        newsMemo.set(memoKey, { at: Date.now(), items });
+        writeNewsCache(rssUrl, items);
+        rememberBridge(bridge.id);
+        return items;
+      }
+    } catch {
+      // Try the next bridge; one bridge being down says nothing about the rest.
+    }
+  }
+
+  const cached = readNewsCache(rssUrl);
+  if (cached) return cached;
+  throw new Error("no news bridge answered");
+}
+
+
 /** General market headlines. */
 export function fetchMarketNews(): Promise<NewsItem[]> {
-  return fetchRssJson(CNBC_TOP_NEWS_RSS, "CNBC");
+  return fetchHeadlines(CNBC_TOP_NEWS_RSS, "CNBC");
 }
 
 /** Headlines related to one symbol (Google News query). */
@@ -918,5 +1052,5 @@ export function fetchSymbolNews(symbol: string): Promise<NewsItem[]> {
   const rss = `https://news.google.com/rss/search?q=${encodeURIComponent(
     `${symbol} stock`,
   )}&hl=en-US&gl=US&ceid=US:en`;
-  return fetchRssJson(rss, "Google News");
+  return fetchHeadlines(rss, "Google News");
 }

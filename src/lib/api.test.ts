@@ -5,6 +5,7 @@ import {
   parseHistory,
   parseMovers,
   parseNews,
+  parseRssXml,
   parseNum,
   parseSaQuote,
   sessionBars,
@@ -739,5 +740,49 @@ describe("offline quote cache", () => {
       JSON.stringify({ at: Date.now() - 13 * 60 * 60 * 1000, quote: sample }),
     );
     expect(cachedQuote("AAPL")).toBeNull();
+  });
+});
+
+describe("parseRssXml", () => {
+  const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>US Top News</title>
+<item>
+  <title><![CDATA[Stocks climb as inflation cools &amp; yields fall]]></title>
+  <link>https://www.cnbc.com/2026/11/10/stocks-climb.html</link>
+  <pubDate>Mon, 10 Nov 2026 09:12:00 GMT</pubDate>
+  <source>CNBC</source>
+</item>
+<item>
+  <title>Oil slips after OPEC meeting &quot;surprise&quot;</title>
+  <link>https://www.cnbc.com/2026/11/10/oil-slips.html</link>
+  <pubDate>Mon, 10 Nov 2026 08:40:00 GMT</pubDate>
+</item>
+<item>
+  <title>No link, so not usable</title>
+</item>
+</channel></rss>`;
+
+  it("reads titles, links and dates out of a feed's own XML", () => {
+    const items = parseRssXml(feed, "CNBC");
+    expect(items).toHaveLength(2);
+    expect(items[0].title).toBe("Stocks climb as inflation cools & yields fall");
+    expect(items[0].url).toBe("https://www.cnbc.com/2026/11/10/stocks-climb.html");
+    expect(items[0].publishedAt).toContain("10 Nov 2026");
+    expect(items[0].source).toBe("CNBC");
+  });
+
+  it("decodes entities and keeps quotes readable", () => {
+    const [, second] = parseRssXml(feed, "CNBC");
+    expect(second.title).toBe('Oil slips after OPEC meeting "surprise"');
+  });
+
+  it("falls back to the given source when an item names none", () => {
+    const [, second] = parseRssXml(feed, "Google News");
+    expect(second.source).toBe("Google News");
+  });
+
+  it("returns nothing for an empty or non-feed body", () => {
+    expect(parseRssXml("", "CNBC")).toEqual([]);
+    expect(parseRssXml("<html><body>502 Bad Gateway</body></html>", "CNBC")).toEqual([]);
   });
 });
