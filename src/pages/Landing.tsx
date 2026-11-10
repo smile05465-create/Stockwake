@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { fetchCnbcQuotes } from "../lib/api";
 import type { CnbcQuote } from "../lib/api";
 import { useAsync } from "../hooks/useAsync";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import LastUpdated from "../components/LastUpdated";
 import { formatPercent, formatPrice } from "../lib/format";
 import type { ReactNode } from "react";
 
@@ -43,10 +45,11 @@ const FEATURES: Array<{ title: string; body: ReactNode; icon: string }> = [
 ];
 
 function IndexPulse() {
-  const { data, error, loading } = useAsync<CnbcQuote[]>(
+  const { data, error, loading, refreshing, updatedAt, reload } = useAsync<CnbcQuote[]>(
     () => fetchCnbcQuotes(INDICES),
     [],
   );
+  useAutoRefresh(reload, { intervalMs: 60_000, enabled: !error });
 
   if (error) {
     return (
@@ -61,6 +64,7 @@ function IndexPulse() {
   }
 
   return (
+    <>
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {(data ?? INDICES.map(() => null)).map((q, i) => {
         const symbol = q?.symbol ?? INDICES[i];
@@ -100,6 +104,12 @@ function IndexPulse() {
         );
       })}
     </div>
+    {updatedAt && (
+      <div className="text-right mt-2">
+        <LastUpdated at={updatedAt} refreshing={refreshing} />
+      </div>
+    )}
+    </>
   );
 }
 
