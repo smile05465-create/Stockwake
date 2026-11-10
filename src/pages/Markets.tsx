@@ -157,7 +157,7 @@ export default function Markets() {
 
       {/* Two-pane from `md` (tablet); stacked on phones. */}
       <div className="grid md:grid-cols-5 gap-6 items-start">
-        <div className="md:col-span-3 space-y-6">
+        <div className="md:col-span-3 space-y-6 min-w-0">
           <MoversTable
             tab={tab}
             onTabChange={setTab}
@@ -168,7 +168,7 @@ export default function Markets() {
           />
           <WatchlistSnapshot />
         </div>
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 min-w-0">
           <NewsList
             news={news.data}
             loading={news.loading}

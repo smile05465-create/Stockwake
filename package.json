@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:layout": "node scripts/layout-check.mjs"
+    "test:layout": "node scripts/layout-check.mjs",
+    "test:smoke": "node scripts/smoke-check.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
