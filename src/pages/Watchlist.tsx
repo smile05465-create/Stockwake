@@ -2,10 +2,12 @@
 
 import { useCallback, useState } from "react";
 import {
+  cachedQuote,
   fetchCnbcQuotes,
   fetchMarketNews,
   fetchQuote,
   fetchScannerChanges,
+  rememberQuote,
   searchSymbols,
 } from "../lib/api";
 import type { CnbcQuote } from "../lib/api";
@@ -146,6 +148,10 @@ export default function Watchlist() {
       return null;
     });
 
+    // Cache what we did get; fill gaps with what we had last time we had network.
+    for (const q of merged) if (q && !q.unknownChange) rememberQuote(q);
+    const filled = merged.map((q, i) => (q ?? cachedQuote(symbols[i])));
+
     // Fill moves the quote feed withheld (CNBC answers "UNCH" after hours and
     // stockanalysis is unreadable from a browser) with one scanner request.
     const missing = merged
@@ -155,7 +161,7 @@ export default function Watchlist() {
 
     if (missing.length > 0) {
       const moves = await fetchScannerChanges(missing);
-      return merged.map((q, i) => {
+      return filled.map((q, i) => {
         const move = moves.get(symbols[i].toUpperCase());
         if (!q || !move || move.changePct == null) return q;
         return {
@@ -167,7 +173,7 @@ export default function Watchlist() {
       });
     }
 
-    return merged;
+    return filled;
   }, [symbols]);
   const { data, error, loading, refreshing, updatedAt, reload } = useAsync<(Quote | null)[]>(loader, [
     symbols.join(","),

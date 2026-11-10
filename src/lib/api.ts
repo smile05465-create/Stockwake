@@ -368,6 +368,38 @@ export function parseSaQuote(
 }
 
 /** Latest quote for one stock/ETF. */
+/* ------------------------------------------------------------------ */
+/* Offline quotes — a phone in a lift should still show yesterday       */
+/* ------------------------------------------------------------------ */
+
+const QUOTE_CACHE_PREFIX = "stockwake.quote.";
+const QUOTE_CACHE_TTL = 12 * 60 * 60 * 1000;
+
+/** Remember the last good quote for a symbol (12h), so the app can show it offline. */
+export function rememberQuote(quote: Quote): void {
+  try {
+    window.localStorage.setItem(
+      QUOTE_CACHE_PREFIX + quote.symbol.toUpperCase(),
+      JSON.stringify({ at: Date.now(), quote }),
+    );
+  } catch {
+    // A full or blocked store must never break a successful fetch.
+  }
+}
+
+/** Last known quote for a symbol, marked stale. Null when there is none. */
+export function cachedQuote(symbol: string): Quote | null {
+  try {
+    const raw = window.localStorage.getItem(QUOTE_CACHE_PREFIX + symbol.toUpperCase());
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at: number; quote: Quote };
+    if (!parsed?.quote || Date.now() - parsed.at > QUOTE_CACHE_TTL) return null;
+    return { ...parsed.quote, stale: true, cachedAt: parsed.at };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchQuote(
   symbol: string,
   name = symbol,
@@ -376,7 +408,9 @@ export async function fetchQuote(
   const url = `${SA_BASE}/quotes/s/${encodeURIComponent(symbol)}`;
   return marketCache.wrap(url, 30_000, async () => {
     const json = (await fetchJson(url)) as { data?: SaQuoteData };
-    return parseSaQuote(json, symbol, name, kind);
+    const quote = parseSaQuote(json, symbol, name, kind);
+    if (quote) rememberQuote(quote);
+    return quote;
   });
 }
 

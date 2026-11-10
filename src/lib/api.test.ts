@@ -677,3 +677,67 @@ describe("news cache", () => {
     expect(items[0].title).toBe("Cached headline");
   });
 });
+
+describe("offline quote cache", () => {
+  const store = new Map<string, string>();
+  beforeEach(() => {
+    store.clear();
+    (globalThis as unknown as { window: { localStorage: Storage } }).window = {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+        clear: () => store.clear(),
+        key: (i: number) => [...store.keys()][i] ?? null,
+        get length() {
+          return store.size;
+        },
+      } as Storage,
+    } as unknown as { localStorage: Storage };
+  });
+
+  const sample = {
+    symbol: "AAPL",
+    name: "Apple Inc.",
+    kind: "stock" as const,
+    price: 350,
+    change: 8,
+    changePct: 2.4,
+    previousClose: 342,
+    open: 345,
+    high: 352,
+    low: 344,
+    volume: 1000,
+    date: "2026-11-09",
+    currency: "USD",
+    exchange: "NASDAQ",
+    marketCap: 5e12,
+    high52w: 355,
+    low52w: 243,
+    extended: null,
+    session: "closed" as const,
+  };
+
+  it("returns a stale copy marked as cached", async () => {
+    const { rememberQuote, cachedQuote } = await import("./api");
+    rememberQuote(sample);
+    const cached = cachedQuote("AAPL");
+    expect(cached?.stale).toBe(true);
+    expect(cached?.price).toBe(350);
+    expect(typeof cached?.cachedAt).toBe("number");
+  });
+
+  it("returns null when nothing was cached", async () => {
+    const { cachedQuote } = await import("./api");
+    expect(cachedQuote("NOPE")).toBeNull();
+  });
+
+  it("ignores a cache older than half a day", async () => {
+    const { cachedQuote } = await import("./api");
+    store.set(
+      "stockwake.quote.AAPL",
+      JSON.stringify({ at: Date.now() - 13 * 60 * 60 * 1000, quote: sample }),
+    );
+    expect(cachedQuote("AAPL")).toBeNull();
+  });
+});

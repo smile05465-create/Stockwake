@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  cachedQuote,
   fetchCnbcQuotes,
   fetchPerformance,
   fetchScannerChanges,
@@ -91,7 +92,7 @@ export default function SymbolPage() {
   const newsState = useAsync<NewsItem[]>(() => fetchSymbolNews(symbol), [symbol]);
 
   const bundle = quoteState.data;
-  const rawQuote = bundle?.quote ?? null;
+  const rawQuote = bundle?.quote ?? (quoteState.error ? cachedQuote(symbol) : null);
 
   // CNBC withholds the move after hours ("UNCH") and stockanalysis is unreadable
   // from a browser, so fall back to the scanner for the day's change.

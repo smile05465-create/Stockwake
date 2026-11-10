@@ -23,6 +23,10 @@ export interface Quote {
   changePct: number;
   /** True when the feed withheld the move (e.g. CNBC's "UNCH" after hours). */
   unknownChange?: boolean;
+  /** True when this is the last known quote, served while offline. */
+  stale?: boolean;
+  /** When the stale quote was captured (ms epoch). */
+  cachedAt?: number;
   previousClose: number;
   open: number | null;
   high: number | null;

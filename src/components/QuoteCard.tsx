@@ -36,6 +36,14 @@ export default function QuoteCard({ quote, remove }: Props) {
         <span className={`text-xs num px-1.5 py-0.5 rounded ${chip}`}>
           {unknown ? "—" : formatPercent(quote.changePct)}
         </span>
+        {quote.stale && (
+          <span
+            className="text-[10px] uppercase tracking-wide text-slate-500 border border-ink-600 rounded px-1 py-0.5"
+            title={quote.cachedAt ? `Saved ${new Date(quote.cachedAt).toLocaleString()}` : "Saved earlier"}
+          >
+            cached
+          </span>
+        )}
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-2">
