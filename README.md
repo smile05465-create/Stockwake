@@ -30,7 +30,7 @@ dark-themed UI that works on desktop and phone.
 | Build     | [Vite 7](https://vite.dev) + TypeScript 5.9 (strict)      |
 | UI        | React 19 + Tailwind CSS v4 (`@theme` design tokens)       |
 | Routing   | react-router-dom v7 (`HashRouter`)                        |
-| Tests     | Vitest 3 (unit, render smoke, opt-in live integration)    |
+| Tests     | Vitest 3 (unit, render smoke, opt-in live) + Playwright layout/smoke checks |
 | Package   | Bun (npm/pnpm/yarn work too)                              |
 
 No backend, no database, no accounts, no payments — everything runs client-side.
@@ -39,13 +39,26 @@ No backend, no database, no accounts, no payments — everything runs client-sid
 
 | Provider                  | Used for                                            |
 | ------------------------- | --------------------------------------------------- |
-| stockanalysis.com API     | symbol search, latest quotes, daily OHLCV history    |
+| Nasdaq trader symbol directory | symbol search, via a bundled local index (see below) |
+| stockanalysis.com API     | latest quotes, daily OHLCV history                   |
 | CNBC restQuote webservice | batch quotes, index quotes, fundamentals             |
 | TradingView scanner       | gainers / losers / most-active tables                |
 | rss2json + CNBC/Google News RSS | market news and per-symbol headlines          |
 
 Responses are cached in-memory with a short TTL plus single-flight dedupe so the free feeds
-are never hammered.
+are never hammered. Quotes refresh themselves every minute while the tab is visible; headlines
+every five. A refresh never blanks the screen.
+
+**Symbol search runs locally.** `public/tickers.json` holds every US-listed stock and ETF
+(~12,900 symbols) generated from the free Nasdaq directory by `scripts/build-tickers.mjs`; the app
+matches in memory. No request per keystroke, nothing to rate-limit, works offline after first load.
+
+**Price history needs a relay in production.** stockanalysis.com answers CORS from `localhost` but
+not from public origins, so the chart's history call fails once the site is deployed while working
+perfectly in local development. Set `VITE_HISTORY_PROXY` to a small endpoint that forwards
+`?p=<path>` to `https://stockanalysis.com/api/` and returns it with `Access-Control-Allow-Origin`,
+and history starts working again with no other code change. Without it the chart says so plainly
+and the quote, statistics and news keep working.
 
 ## Getting started
 
@@ -61,6 +74,8 @@ bun run dev        # dev server on http://localhost:5173
 | `bun run dev`          | start the Vite dev server                     |
 | `bun run typecheck`    | `tsc -b --noEmit` — full project type check   |
 | `bun run test`         | run the unit + render test suite              |
+| `bun run test:layout`  | Playwright layout check at 360–1280px         |
+| `bun run test:smoke`   | Playwright walk-through of the real user path |
 | `STOCKWAKE_LIVE=1 bun run test` | also runs live integration tests against the real feeds |
 | `bun run build`        | typecheck + production build into `dist/`     |
 
@@ -81,3 +96,13 @@ src/
 - `src/app.smoke.test.tsx` — server-renders every route through the real router and layout.
 - `src/lib/live.integration.test.ts` — opt-in end-to-end checks of search, quotes, history,
   movers and news against the live feeds (`STOCKWAKE_LIVE=1`).
+- `scripts/layout-check.mjs` — renders the app at phone/tablet/desktop widths and asserts real
+  geometry: no overflow, no sideways scroll, every control in bounds.
+- `scripts/smoke-check.mjs` — landing → markets → search → symbol → watchlist → reload, with feed
+  outages reported as SKIP rather than a false PASS.
+
+## Deploying
+
+Pushing to `main` builds and publishes to GitHub Pages (`.github/workflows/deploy-pages.yml`).
+Enable it once: Settings → Pages → Source **GitHub Actions**. The build uses `--base=/Stockwake/`
+to match a project page.
