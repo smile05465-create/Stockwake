@@ -94,6 +94,32 @@ async function fetchJson(url: string, init?: RequestInit, attempts = 2): Promise
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
+/** POST helper: same retry/back-off behaviour as fetchJson. */
+async function fetchJsonWithBody(url: string, body: unknown, attempts = 2): Promise<unknown> {
+  let lastError: unknown = new Error(`Request failed: ${url}`);
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain", Accept: "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout?.(12_000),
+      });
+      if (res.ok) return await res.json();
+      lastError = new Error(`HTTP ${res.status} for ${url}`);
+      if (res.status === 403 || res.status === 429) {
+        await sleep(1_200);
+        continue;
+      }
+      break;
+    } catch (err) {
+      lastError = err;
+      if (i < attempts - 1) await sleep(500);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 /* ------------------------------------------------------------------ */
 /* Search                                                              */
 /* ------------------------------------------------------------------ */
@@ -106,6 +132,98 @@ async function fetchJson(url: string, init?: RequestInit, attempts = 2): Promise
  */
 export async function searchSymbols(query: string): Promise<SearchHit[]> {
   return searchSymbolsLocal(query);
+}
+
+/* ------------------------------------------------------------------ */
+/* Performance profile (TradingView) — used when history is unavailable */
+/* ------------------------------------------------------------------ */
+
+export interface PerformanceProfile {
+  w: number | null;
+  m1: number | null;
+  m3: number | null;
+  m6: number | null;
+  y1: number | null;
+  y5: number | null;
+  ytd: number | null;
+  high52: number | null;
+  low52: number | null;
+}
+
+const PERF_COLUMNS = [
+  "close",
+  "Perf.W",
+  "Perf.1M",
+  "Perf.3M",
+  "Perf.6M",
+  "Perf.Y",
+  "Perf.5Y",
+  "Perf.YTD",
+  "price_52_week_high",
+  "price_52_week_low",
+];
+
+/** Exchange name (CNBC) → TradingView venue prefix. */
+export function venuePrefix(exchange: string | null | undefined): string | null {
+  const e = (exchange ?? "").toUpperCase();
+  if (!e) return null;
+  if (e.includes("NASDAQ")) return "NASDAQ";
+  if (e.includes("ARCA") || e.includes("AMERICAN") || e.includes("AMEX")) return "AMEX";
+  if (e.includes("NYSE")) return "NYSE";
+  return null;
+}
+
+/** Map one scanner row to a profile (pure, testable). */
+export function parsePerformance(
+  row: { d?: unknown[] } | null | undefined,
+): PerformanceProfile | null {
+  const d = row?.d;
+  if (!Array.isArray(d) || d.length < 10) return null;
+  const num = (v: unknown): number | null => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  return {
+    m1: num(d[2]),
+    m3: num(d[3]),
+    m6: num(d[4]),
+    y1: num(d[5]),
+    y5: num(d[6]),
+    ytd: num(d[7]),
+    high52: num(d[8]),
+    low52: num(d[9]),
+    w: num(d[1]),
+  };
+}
+
+/**
+ * Range performance for a symbol from the Triton-sourced scanner the movers
+ * table already uses. Chart history needs a CORS relay; this does not, so the
+ * symbol page can still show how the stock has actually done.
+ */
+export async function fetchPerformance(
+  symbol: string,
+  exchange?: string | null,
+): Promise<PerformanceProfile | null> {
+  const pref = venuePrefix(exchange);
+  const candidates = pref ? [pref] : ["NASDAQ", "NYSE", "AMEX"];
+
+  for (const venue of candidates) {
+    const ticker = `${venue}:${symbol.toUpperCase()}`;
+    try {
+      const json = (await marketCache.wrap(`perf:${ticker}`, 300_000, async () => {
+        return (await fetchJsonWithBody(TV_SCAN, {
+          symbols: { tickers: [ticker], query: { types: [] } },
+          columns: PERF_COLUMNS,
+        })) as { data?: { d?: unknown[] }[] };
+      })) as { data?: { d?: unknown[] }[] };
+      const row = json?.data?.[0];
+      if (row?.d?.length) return parsePerformance(row);
+    } catch {
+      // try the next venue
+    }
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------------ */

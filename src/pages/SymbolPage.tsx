@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   fetchCnbcQuotes,
+  fetchPerformance,
   fetchHistory,
   fetchQuote,
   fetchSymbolNews,
@@ -14,6 +15,7 @@ import type { CnbcQuote } from "../lib/api";
 import type { Bar, ChartRange, KeyStats, NewsItem, Quote } from "../lib/types";
 import { useAsync } from "../hooks/useAsync";
 import { useWatchlist } from "../hooks/useWatchlist";
+import PerformanceBlock from "../components/PerformanceBlock";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import LastUpdated from "../components/LastUpdated";
 import { isWatchlistFull, MAX_SYMBOLS } from "../lib/watchlist";
@@ -89,6 +91,12 @@ export default function SymbolPage() {
 
   const bundle = quoteState.data;
   const quote = bundle?.quote ?? null;
+  // When the daily series cannot be read (CORS in production), fall back to the
+  // range returns we can still get — numbers, clearly labelled as numbers.
+  const perfState = useAsync(
+    () => fetchPerformance(symbol, quote?.exchange ?? null),
+    [symbol, quote?.exchange, historyState.error ? "fallback" : "primary"],
+  );
   const stats = bundle?.stats ?? null;
   const rawBars = historyState.data ?? [];
   // 1D is the last trading session (live quote merged in); other ranges are
@@ -195,11 +203,6 @@ export default function SymbolPage() {
               </span>
             )}
           </div>
-          <LastUpdated
-            at={quoteState.updatedAt}
-            refreshing={quoteState.refreshing}
-            className="block sm:text-right mt-1"
-          />
           {quote && (
             <p className="num text-sm text-slate-500 mt-1">
               {formatChange(quote.change)} vs prev. close
@@ -212,6 +215,12 @@ export default function SymbolPage() {
               {formatPercent(quote.extended.changePct)})
             </p>
           )}
+          <LastUpdated
+            at={quoteState.updatedAt}
+            refreshing={quoteState.refreshing}
+            className="block sm:text-right mt-1"
+          />
+
           <div className="mt-3 flex sm:justify-end">
             <button
               type="button"
@@ -297,22 +306,32 @@ export default function SymbolPage() {
             </div>
           )}
           {historyState.error && quote?.kind !== "index" && (
-            <div className="py-6 text-center px-4">
-              <p className="text-sm text-slate-400">
-                Chart history is unavailable right now.
-              </p>
-              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                The public data source stopped allowing browser requests. The quote, statistics and
-                news above are unaffected — today’s move is real, only the historical series is
-                missing.
-              </p>
-              <button
-                type="button"
-                className="mt-3 text-xs uppercase tracking-wide text-flare-400 hover:text-flare-300 underline"
-                onClick={historyState.reload}
-              >
-                Try again
-              </button>
+            <div className="px-1">
+              {perfState.data ? (
+                <>
+                  <p className="text-xs text-slate-500 mb-3">
+                    The daily price series can’t be read from this browser, so here are the returns
+                    instead — same data the movers table uses.
+                  </p>
+                  <PerformanceBlock profile={perfState.data} price={quote?.price ?? null} />
+                </>
+              ) : (
+                <p className="text-sm text-slate-400 text-center py-6">
+                  Chart history is unavailable right now.
+                </p>
+              )}
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  className="text-xs uppercase tracking-wide text-flare-400 hover:text-flare-300 underline"
+                  onClick={() => {
+                    historyState.reload();
+                    perfState.reload();
+                  }}
+                >
+                  Try again
+                </button>
+              </div>
             </div>
           )}
           {historyState.loading && bars.length === 0 && (

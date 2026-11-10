@@ -479,3 +479,35 @@ describe("parseNews", () => {
     expect(parseNews({ status: "ok", items: [{ title: "no link" }] }, "X")).toEqual([]);
   });
 });
+
+describe("venuePrefix", () => {
+  it("maps common exchange names to scanner venues", async () => {
+    const { venuePrefix } = await import("./api");
+    expect(venuePrefix("NASDAQ")).toBe("NASDAQ");
+    expect(venuePrefix("NYSE")).toBe("NYSE");
+    expect(venuePrefix("NYSE Arca")).toBe("AMEX");
+    expect(venuePrefix("NYSE American")).toBe("AMEX");
+    expect(venuePrefix("CBOE")).toBeNull();
+    expect(venuePrefix(null)).toBeNull();
+  });
+});
+
+describe("parsePerformance", () => {
+  it("maps a scanner row, including zeros", async () => {
+    const { parsePerformance } = await import("./api");
+    const row = { d: [350.69, 2.34, 5.72, 13.95, 19.48, 29.98, 133.48, 28.8, 355.38, 243.42, 2.88, 0.65] };
+    const p = parsePerformance(row);
+    expect(p).not.toBeNull();
+    expect(p!.w).toBe(2.34);
+    expect(p!.m1).toBe(5.72);
+    expect(p!.y5).toBe(133.48);
+    expect(p!.high52).toBe(355.38);
+    expect(p!.low52).toBe(243.42);
+  });
+
+  it("rejects short or malformed rows", async () => {
+    const { parsePerformance } = await import("./api");
+    expect(parsePerformance(null)).toBeNull();
+    expect(parsePerformance({ d: [1, 2] })).toBeNull();
+  });
+});
