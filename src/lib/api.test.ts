@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   parseCnbcQuotes,
   parseCompact,
@@ -638,5 +638,42 @@ describe("parseScannerChanges", () => {
   it("skips rows without a symbol", async () => {
     const { parseScannerChanges } = await import("./api");
     expect(parseScannerChanges({ data: [{ d: [1, 2] }] })).toEqual([]);
+  });
+});
+
+describe("news cache", () => {
+  const store = new Map<string, string>();
+  beforeEach(() => {
+    store.clear();
+    (globalThis as unknown as { window: { localStorage: Storage } }).window = {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+        clear: () => store.clear(),
+        key: (i: number) => [...store.keys()][i] ?? null,
+        get length() {
+          return store.size;
+        },
+      } as Storage,
+    } as unknown as { localStorage: Storage };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("keeps showing cached headlines when the feed is unavailable", async () => {
+    const key = "stockwake.news.https://www.cnbc.com/id/100003114/device/rss/rss.html";
+    store.set(key, JSON.stringify({
+      at: Date.now(),
+      items: [{ title: "Cached headline", url: "https://example.com", publishedAt: "", source: "CNBC" }],
+    }));
+
+    // Force the network to fail: the cache is the only thing that can answer.
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    const { fetchMarketNews } = await import("./api");
+    const items = await fetchMarketNews();
+    expect(items[0].title).toBe("Cached headline");
   });
 });
