@@ -9,9 +9,11 @@ import { useWatchlist } from "../hooks/useWatchlist";
 import NewsList from "../components/NewsList";
 import QuoteCard from "../components/QuoteCard";
 import { formatPercent, formatPrice } from "../lib/format";
+import { MAX_SYMBOLS } from "../lib/watchlist";
 
-function AddSymbol({ onAdd }: { onAdd: (symbol: string) => void }) {
+function AddSymbol({ onAdd, count }: { onAdd: (symbol: string) => void; count: number }) {
   const [q, setQ] = useState("");
+  const [fullNotice, setFullNotice] = useState("");
   const [results, setResults] = useState<Array<{ symbol: string; name: string }> | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -64,7 +66,14 @@ function AddSymbol({ onAdd }: { onAdd: (symbol: string) => void }) {
         />
         <button
           type="button"
-          onClick={() => void lookup()}
+          onClick={() => {
+            if (count >= MAX_SYMBOLS) {
+              setFullNotice(`Watchlist is full (${MAX_SYMBOLS}). Remove one first.`);
+              return;
+            }
+            setFullNotice("");
+            void lookup();
+          }}
           disabled={busy}
           className="rounded-lg bg-flare-500 hover:bg-flare-400 disabled:opacity-50 text-ink-950
                      font-semibold text-sm px-4 py-2 transition-colors"
@@ -72,6 +81,12 @@ function AddSymbol({ onAdd }: { onAdd: (symbol: string) => void }) {
           {busy ? "…" : "Add"}
         </button>
       </div>
+
+      {fullNotice && (
+        <p className="mt-2 text-xs text-flare-400" role="status">
+          {fullNotice}
+        </p>
+      )}
 
       {results && results.length > 0 && (
         <ul className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-ink-600 bg-ink-900 shadow-2xl shadow-black/50 overflow-hidden">
@@ -148,7 +163,7 @@ export default function Watchlist() {
           </p>
         </div>
         <div className="sm:max-w-sm w-full">
-          <AddSymbol onAdd={add} />
+          <AddSymbol onAdd={add} count={symbols.length} />
         </div>
       </div>
 
