@@ -7,52 +7,12 @@ import {
   parseNews,
   parseNum,
   parseSaQuote,
-  parseSearch,
   sessionBars,
   trimToDays,
   trimToMonths,
 } from "./api";
 import type { Bar, Quote } from "./types";
 
-describe("parseSearch", () => {
-  it("maps stockanalysis search rows", () => {
-    const hits = parseSearch({
-      data: [
-        { id: "AAPL", s: "AAPL", t: "s", n: "Apple Inc." },
-        { id: "AAPY", s: "AAPY", t: "e", n: "Kurv Yield Premium Strategy Apple (AAPL) ETF" },
-      ],
-    });
-    expect(hits).toEqual([
-      { symbol: "AAPL", name: "Apple Inc.", kind: "stock" },
-      {
-        symbol: "AAPY",
-        name: "Kurv Yield Premium Strategy Apple (AAPL) ETF",
-        kind: "etf",
-      },
-    ]);
-  });
-
-  it("prefers plain listings over exchange-prefixed ones", () => {
-    const hits = parseSearch({
-      data: [
-        { s: "ase/MSFT", t: "sy", n: "Masafat for Specialised Transport Company", st: "s" },
-        { s: "MSFT", t: "s", n: "Microsoft Corporation" },
-      ],
-    });
-    expect(hits[0].symbol).toBe("MSFT");
-  });
-
-  it("uses ticker as name fallback", () => {
-    const hits = parseSearch({ data: [{ s: "ZZZZ", t: "s" }] });
-    expect(hits[0].name).toBe("ZZZZ");
-  });
-
-  it("handles empty payloads", () => {
-    expect(parseSearch(null)).toEqual([]);
-    expect(parseSearch({})).toEqual([]);
-    expect(parseSearch({ data: [{ t: "s" }] })).toEqual([]);
-  });
-});
 
 describe("parseSaQuote", () => {
   // Shape verified against https://stockanalysis.com/api/quotes/s/AAPL

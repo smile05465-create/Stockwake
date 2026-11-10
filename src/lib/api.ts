@@ -12,6 +12,7 @@
  */
 
 import { marketCache } from "./cache";
+import { searchSymbolsLocal } from "./searchIndex";
 import type {
   AssetKind,
   Bar,
@@ -76,44 +77,14 @@ async function fetchJson(url: string, init?: RequestInit, attempts = 2): Promise
 /* Search                                                              */
 /* ------------------------------------------------------------------ */
 
-interface SaSearchRow {
-  id?: string;
-  s?: string;
-  t?: string;
-  n?: string;
-  st?: string;
-}
-
-/** Map a stockanalysis search row list to ranked SearchHits. */
-export function parseSearch(payload: { data?: SaSearchRow[] } | null | undefined): SearchHit[] {
-  const rows = payload?.data ?? [];
-  const hits: SearchHit[] = rows
-    .filter((r) => typeof r.s === "string" && r.s.length > 0)
-    .map((r) => ({
-      symbol: r.s as string,
-      name: r.n ?? (r.s as string),
-      kind: r.t === "e" || r.st === "e" ? "etf" : "stock",
-    }));
-
-  // Prefer plain US listings and exact-ticker matches at the top.
-  return hits.sort((a, b) => {
-    const aPlain = a.symbol.includes("/") ? 1 : 0;
-    const bPlain = b.symbol.includes("/") ? 1 : 0;
-    if (aPlain !== bPlain) return aPlain - bPlain;
-    return 0;
-  });
-}
-
-/** Search symbols by ticker or company name. */
+/**
+ * Symbol search runs entirely against the bundled local index
+ * (see `searchIndex.ts`). The previous stockanalysis.com endpoint is no
+ * longer readable from a browser, and a local index also removes a network
+ * round trip from every keystroke.
+ */
 export async function searchSymbols(query: string): Promise<SearchHit[]> {
-  const q = query.trim();
-  if (!q) return [];
-  const url = `${SA_BASE}/search?q=${encodeURIComponent(q)}&limit=10`;
-  const data = await marketCache.wrap(url, 30_000, async () => {
-    const json = (await fetchJson(url)) as { data?: SaSearchRow[] };
-    return parseSearch(json);
-  });
-  return data;
+  return searchSymbolsLocal(query);
 }
 
 /* ------------------------------------------------------------------ */
