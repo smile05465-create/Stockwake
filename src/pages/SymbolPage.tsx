@@ -92,7 +92,9 @@ export default function SymbolPage() {
   const newsState = useAsync<NewsItem[]>(() => fetchSymbolNews(symbol), [symbol]);
 
   const bundle = quoteState.data;
-  const rawQuote = bundle?.quote ?? (quoteState.error ? cachedQuote(symbol) : null);
+  // No quote and nothing still loading: fall back to the last one we saw.
+  const rawQuote =
+    bundle?.quote ?? (!quoteState.loading ? cachedQuote(symbol) : null);
 
   // CNBC withholds the move after hours ("UNCH") and stockanalysis is unreadable
   // from a browser, so fall back to the scanner for the day's change.
@@ -173,6 +175,18 @@ export default function SymbolPage() {
                     : quote.session === "post"
                       ? "After hours"
                       : "Market closed"}
+              </span>
+            )}
+            {quote?.stale && (
+              <span
+                className="text-[11px] uppercase tracking-wide px-2 py-0.5 rounded-full border border-ink-600 text-slate-500"
+                title={
+                  quote.cachedAt
+                    ? `Saved ${new Date(quote.cachedAt).toLocaleString()}`
+                    : "Saved earlier"
+                }
+              >
+                cached
               </span>
             )}
           </div>
